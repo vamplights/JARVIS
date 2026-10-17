@@ -1,0 +1,20 @@
+const symOK=s=>typeof s==='string'&&/^[A-Z][A-Z0-9.]{0,9}$/.test(s);
+export function parsePublicOptions(data,symbol,now=Date.now()){
+ if(!symOK(symbol)||!Array.isArray(data?.data?.options))throw Error('Public option chain unavailable');
+ const reportedAt=String(data.timestamp||''),time=/Z$|[+-]\d\d:\d\d$/.test(reportedAt)?Date.parse(reportedAt):null;
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now)),spot=Number(data.data.current_price);
+ let contracts=data.data.options.flatMap(o=>{const m=String(o.option||'').match(/^([A-Z0-9.]+?)(\d{6})([CP])(\d{8})$/);if(!m||m[1].replace(/\d$/,'')!==symbol&&m[1]!==symbol)return [];const expiry='20'+m[2].slice(0,2)+'-'+m[2].slice(2,4)+'-'+m[2].slice(4,6),num=k=>o[k]!==null&&o[k]!==''&&Number.isFinite(+o[k])?+o[k]:null;return [{id:'cboe-'+o.option,symbol,type:m[3]==='C'?'call':'put',strike:+m[4]/1000,expiration:expiry,multiplier:100,source:'Cboe delayed research',quote:{bid:num('bid'),ask:num('ask'),delta:num('delta'),gamma:num('gamma'),theta:num('theta'),iv:num('iv'),volume:num('volume'),openInterest:num('open_interest'),time:Number.isFinite(time)?time:null,delayed:true}}];});
+ contracts=contracts.filter(c=>c.expiration>=today&&(!spot||Math.abs(c.strike/spot-1)<=.04));const expiries=[...new Set(contracts.map(c=>c.expiration))].sort().slice(0,3);contracts=contracts.filter(c=>expiries.includes(c.expiration)).slice(0,5000);
+ return {symbol,source:'Cboe public delayed chain',delayed:true,delayMinutes:15,reportedAt,receivedAt:now,contracts,label:'Research only · approximately 15-minute delayed quotes'};
+}
+export function researchContracts(chain,signal,now=Date.now()){
+ if(!chain||now-chain.receivedAt>180000||chain.receivedAt>now)return [];
+ const type=signal.dir>0?'call':'put',today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now)),eligible=chain.contracts.filter(c=>c.type===type&&c.expiration>=today&&c.quote.bid>0&&c.quote.ask>=c.quote.bid&&(c.quote.ask-c.quote.bid)/((c.quote.ask+c.quote.bid)/2)<.15&&Number.isFinite(c.quote.delta)&&Math.abs(c.quote.delta)>0&&Math.abs(c.quote.delta)<=1);
+ const list=eligible,expiry=list.map(c=>c.expiration).sort()[0];return list.filter(c=>c.expiration===expiry).sort((a,b)=>Math.abs(Math.abs(a.quote.delta)-.5)-Math.abs(Math.abs(b.quote.delta)-.5)||Math.abs(a.strike-signal.price)-Math.abs(b.strike-signal.price)).slice(0,4);
+}
+export class PublicOptions{
+ constructor({request,now=()=>Date.now()}){this.request=request;this.now=now;this.chains=new Map();this.attempts=new Map();this.pending=new Map();this.errors={};}
+ async load(symbol){if(!symOK(symbol))throw Error('Invalid stock symbol');const cached=this.chains.get(symbol);if(cached&&this.now()-cached.receivedAt<60000)return cached;if(this.pending.has(symbol))return this.pending.get(symbol);const promise=(async()=>{this.attempts.set(symbol,this.now());try{const chain=parsePublicOptions(await this.request('https://cdn-api.cboe.com/api/global/delayed_quotes/options/'+encodeURIComponent(symbol)+'.json'),symbol,this.now());this.chains.set(symbol,chain);delete this.errors[symbol];return chain;}catch(e){this.errors[symbol]=e.message;throw e;}})();this.pending.set(symbol,promise);try{return await promise;}finally{this.pending.delete(symbol);}}
+ async tick(signals,enabled=true){if(!enabled||this.busy)return;this.busy=true;try{const symbols=[...new Set(signals.filter(s=>s.market==='stocks'&&['CONFIRMED','SETUP FORMING','WATCH'].includes(s.status)&&!s.replay&&!s.legacyProfile).sort((a,b)=>(a.status==='CONFIRMED'?-1:1)-(b.status==='CONFIRMED'?-1:1)).map(s=>s.symbol))];for(const symbol of symbols.filter(s=>this.now()-(this.attempts.get(s)||0)>120000).slice(0,4))try{await this.load(symbol);}catch{}}finally{this.busy=false;}}
+ snapshot(signal){const chain=this.chains.get(signal.symbol);return {source:'Cboe delayed research',delayed:true,delayMinutes:15,reportedAt:chain?.reportedAt,receivedAt:chain?.receivedAt,contracts:researchContracts(chain,signal,this.now()),error:this.errors[signal.symbol]||null};}
+}

@@ -1,0 +1,6 @@
+// Navigation and composition only; no changes to research data or trading cohorts.
+export function researchRoute(id){return id==='performance'?{page:'intelligence',section:'research-outcomes'}:id==='research'?{page:'intelligence',section:'research-lab'}:{page:id,section:null};}
+export function researchWorkspace({heading='',confidence='',outcomes='',lab='',footer=''}){
+ const sections=[['research-confidence','Research & confidence','Profit models, validation, report cards and public sources.',confidence],['research-outcomes','Signal outcomes','Frozen setup results, market-specific costs and out-of-sample expectancy.',outcomes],['research-lab','Strategy Lab','A separate workspace for history, manual replays and strategy rules.',lab]];
+ return heading+'<nav class="research-section-nav" aria-label="Research sections">'+sections.map(([id,title])=>'<button type="button" data-action="research-jump" data-section="'+id+'">'+title+'</button>').join('')+'</nav>'+sections.map(([id,title,note,body])=>'<section class="research-workspace-section" id="'+id+'" aria-labelledby="'+id+'-title"><div class="research-workspace-heading"><h2 id="'+id+'-title">'+title+'</h2><p>'+note+'</p></div><div id="'+id+'-content">'+body+'</div></section>').join('')+footer;
+}

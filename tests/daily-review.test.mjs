@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {DEFAULTS} from '../engine.mjs';
+import {ModelReview} from '../model-review.mjs';
+import {settingsProfile} from '../stats.mjs';
+import {modelReviewPanel,reportCardView,reliabilityChart} from '../model-view.mjs';
+test('Daily cycle refreshes history, resolves outcomes, retrains, validates and saves viewable report cards with honest empty samples',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-review-'));try{
+  const steps=[],settings=structuredClone(DEFAULTS),learning={busy:false,error:null,records:{runs:[]},tick:async()=>steps.push('replay')},paper={data:{observations:[],signals:[{source:'Yahoo Finance',fallback:true}],alerts:[]}},history={status:{downloads:{SPY:{bars:0,partial:true}}},refreshHistory:async()=>steps.push('history')},review=new ModelReview({dir,settings:()=>settings,learning,paper,history,journal:()=>[{id:'j',decision:'taken',symbol:'SPY',signalId:'never-alerted',time:new Date().toISOString()}],resolve:async()=>steps.push('resolve')});
+  await review.review();assert.deepEqual(steps,['history','replay','resolve']);assert.equal(review.status.busy,false);assert.equal(review.models.stocks.status,'learning');assert.equal(review.models.crypto.status,'learning');const report=review.reports[0];assert.equal(report.outcomes.stocks.n,0);assert.equal(report.outcomes.stocks.avgR,null);assert.equal(report.yesterday.brier,null);assert.equal(report.ruleBreaks.length,1);assert.equal(report.sourceUsage['Yahoo Finance'].fallback,1);assert.ok(fs.existsSync(path.join(dir,'report-cards',report.date+'.json')));assert.ok(fs.existsSync(path.join(dir,'trend-models.json')));
+  const restored=new ModelReview({dir,settings:()=>settings,learning,paper,history});assert.equal(restored.reports[0].date,report.date);assert.equal(restored.models.stocks.profile,settingsProfile(settings));assert.equal(restored.estimate({market:'stocks',strategy:'ema-cross',tf:3}).probability,null);assert.deepEqual(restored.reportDates(),[report.date]);assert.equal(restored.pastReport(report.date).date,report.date);assert.throws(()=>restored.pastReport('../secret'),/Invalid report date/);
+  const helpers={esc:v=>String(v??'').replaceAll('<','&lt;'),num:v=>v==null?'—':String(v),date:String},panel=modelReviewPanel(review.snapshot(),helpers),html=reportCardView(report,helpers);assert.match(panel,/Brier/);assert.match(panel,/cohorts under review/);assert.match(html,/Journal rule breaks/);assert.match(html,/Yahoo Finance/);assert.match(reliabilityChart([{n:2,predicted:.7,observed:.5}],helpers),/<circle/);
+  const t=Date.now(),profile=settingsProfile(settings);paper.data.observations=[{id:'x',key:'x',profile,cohort:'confirmed',market:'stocks',symbol:'SPY',strategy:'ema-cross',strategies:['ema-cross','vwap'],tf:3,observedAt:t-60000,entryAt:t-60000,closedAt:t,realizedR:.2}];paper.data.signals=[{profile,market:'stocks',strategy:'ema-cross',strategies:['ema-cross'],timeframe:3,timestamp:t}];const next=review.report(t);assert.equal(next.byStrategy['stocks|ema-cross|3'].signals,1);assert.equal(next.byStrategy['stocks|vwap|3'].signals,0);assert.equal(next.byStrategy['stocks|vwap|3'].today.n,1);assert.equal(next.byStrategy['stocks|ema-cross|5'].n,0);assert.equal(next.brierTrend.filter(p=>p.date===next.date).length,1);
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
+});
+test('Daily schedule uses ET, runs once per date after the configured close hour, and honors off',async()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-schedule-'));try{const settings=structuredClone(DEFAULTS),review=new ModelReview({dir,settings:()=>settings,learning:{records:{runs:[]}},paper:{data:{}},history:{status:{}}});let count=0;review.review=async()=>{count++;};review.tick(Date.parse('2026-10-08T20:59Z'));assert.equal(count,0);review.tick(Date.parse('2026-10-08T21:01Z'));review.tick(Date.parse('2026-10-08T22:00Z'));assert.equal(count,1);review.tick(Date.parse('2026-10-09T21:01Z'));assert.equal(count,2);settings.dailyReview.enabled=false;review.tick(Date.parse('2026-10-10T21:01Z'));assert.equal(count,2);}finally{fs.rmSync(dir,{recursive:true,force:true});}
+});

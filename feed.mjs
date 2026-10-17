@@ -1,0 +1,30 @@
+import { normalizeBars } from './engine.mjs';
+export class CandleBuilder {
+ constructor(seconds=60){this.seconds=seconds;this.bars=new Map();this.seen=new Set();this.started=Date.now();}
+ add(trade){const time=Date.parse(trade.time)/1000,price=+trade.price,size=+trade.size;if(!Number.isFinite(time)||!(price>0)||!(size>=0)||this.seen.has(trade.trade_id))return;this.seen.add(trade.trade_id);if(this.seen.size>10000)this.seen.delete(this.seen.values().next().value);const start=Math.floor(time/this.seconds)*this.seconds;let b=this.bars.get(start);if(!b)b={time:start,open:price,high:price,low:price,close:price,volume:0,first:time,last:time,complete:start*1000>=this.started};b.high=Math.max(b.high,price);b.low=Math.min(b.low,price);if(time<b.first){b.open=price;b.first=time;}if(time>=b.last){b.close=price;b.last=time;}b.volume+=size;this.bars.set(start,b);if(this.bars.size>2000)this.bars.delete(this.bars.keys().next().value);}
+ closed(now=Date.now()){return [...this.bars.values()].filter(b=>b.complete&&b.time+this.seconds<=now/1000).sort((a,b)=>a.time-b.time);}
+}
+export class CoinbaseFeed {
+ constructor(symbols,onChange,save,{Socket=globalThis.WebSocket}={}){this.Socket=Socket;this.symbols=symbols;this.onChange=onChange;this.save=save;this.assets={};this.status='CONNECTING';this.errors=[];this.lastMessage=null;this.attempt=0;this.recovering=true;this.stopped=false;for(const symbol of symbols)this.assets[symbol]={symbol,market:'crypto',source:'Coinbase Exchange history / Advanced Trade stream',base:300,bars:[],quote:null,builder:new CandleBuilder()};}
+ error(message){this.errors.unshift({time:Date.now(),message});this.errors=this.errors.slice(0,15);}
+ async history(symbol){const r=await fetch(`https://api.exchange.coinbase.com/products/${encodeURIComponent(symbol)}/candles?granularity=300`,{signal:AbortSignal.timeout(12000),headers:{'User-Agent':'JarvisLocalSignals/1.0'}});if(!r.ok)throw Error(`Coinbase candles HTTP ${r.status}`);const rows=await r.json();const b=normalizeBars(rows.map(r=>({time:r[0],low:r[1],high:r[2],open:r[3],close:r[4],volume:r[5],complete:r[0]+300<=(Date.now()-2000)/1000})),300);const a=this.assets[symbol],map=new Map(a.bars.map(b=>[b.time,b]));for(const x of b)map.set(x.time,x);a.bars=[...map.values()].sort((a,b)=>a.time-b.time).slice(-6000);a.historyAt=Date.now();this.save?.(symbol,a.bars);}
+ async hydrate(){if(this.loading)return;this.loading=true;let good=true;for(const symbol of this.symbols){try{await this.history(symbol);}catch(e){good=false;this.error(`${symbol}: ${e.message}`);}}this.loading=false;this.recovering=!good;this.onChange();}
+ start(){this.hydrate();this.connect();this.poll=setInterval(()=>this.hydrate(),60000);this.watchdog=setInterval(()=>{if(this.status==='CONNECTED'&&this.lastMessage&&Date.now()-this.lastMessage>15000){this.status='DISCONNECTED';this.recovering=true;this.ws?.close();}this.onChange();},5000);}
+ connect(){if(this.stopped)return;this.status='CONNECTING';const ws=this.ws=new this.Socket('wss://advanced-trade-ws.coinbase.com');let retryScheduled=false,failed=false;
+  const retry=()=>{if(this.stopped||this.ws!==ws||retryScheduled)return;retryScheduled=true;this.status='DISCONNECTED';this.recovering=true;const delay=Math.min(30000,1000*2**Math.min(this.attempt++,5));clearTimeout(this.retry);this.retry=setTimeout(()=>this.connect(),delay);this.onChange();};this.sequence=null;
+  ws.addEventListener('open',()=>{if(this.stopped||this.ws!==ws||failed)return;this.attempt=0;this.status='CONNECTED';this.lastMessage=Date.now();for(const channel of ['heartbeats','ticker','candles','market_trades'])ws.send(JSON.stringify({type:'subscribe',channel,product_ids:this.symbols}));this.hydrate();});
+  ws.addEventListener('message',event=>{if(this.stopped||this.ws!==ws||failed)return;try{const m=JSON.parse(event.data);this.lastMessage=Date.now();if(m.type==='error'){this.error(m.message||'Coinbase subscription error');return;}
+   // Current Advanced Trade sequence_num advances across the entire socket, including subscription acknowledgements.
+   if(Number.isFinite(m.sequence_num)){const previous=this.sequence;if(previous!=null&&m.sequence_num<=previous)return;this.sequence=m.sequence_num;if(previous!=null&&m.sequence_num>previous+1){this.recovering=true;this.error('Feed sequence gap; refreshing historical candles');this.hydrate();}}
+   for(const e of m.events||[]){for(const t of e.tickers||[]){const a=this.assets[t.product_id];if(!a||!(+t.price>0))continue;const time=Date.parse(m.timestamp);if(!Number.isFinite(time))continue;a.quote={price:+t.price,bid:+t.best_bid||null,ask:+t.best_ask||null,change:+t.price_percent_chg_24_h||0,volume:+t.volume_24_h||null,time,source:'Coinbase Advanced Trade'};}
+    for(const c of e.candles||[]){const a=this.assets[c.product_id];if(!a)continue;const b=normalizeBars([{time:+c.start,open:+c.open,high:+c.high,low:+c.low,close:+c.close,volume:+c.volume,complete:+c.start+300<=(Date.parse(m.timestamp)-2000)/1000}],300)[0];const i=a.bars.findIndex(x=>x.time===b.time);if(i<0)a.bars.push(b);else a.bars[i]=b;a.bars.sort((a,b)=>a.time-b.time);a.bars=a.bars.slice(-6000);}
+    for(const t of e.trades||[]){const a=this.assets[t.product_id];if(a)a.builder.add(t);}
+   }this.onChange();
+  }catch(e){this.error('Rejected malformed market-data message');}});
+  // Node 22 can synchronously emit another error from close() inside an error callback.
+  // The failed transport closes itself; schedule one retry without re-entering close().
+  ws.addEventListener('error',()=>{if(this.stopped||this.ws!==ws||failed)return;failed=true;this.error('Coinbase stream connection failed; retry scheduled');retry();});
+  ws.addEventListener('close',retry);
+ }
+ stop(){this.stopped=true;clearInterval(this.poll);clearInterval(this.watchdog);clearTimeout(this.retry);this.ws?.close();}
+}

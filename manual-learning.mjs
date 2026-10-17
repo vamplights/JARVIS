@@ -1,0 +1,24 @@
+import {signalFeatures,featureVector,assertCausalFeatures} from './trend-model.mjs';
+import {observeSignalOutcomes} from './signal-outcomes.mjs';
+import {settingsProfile,summarizeR} from './stats.mjs';
+export function startManualLearning(data,trade,signal,asset,settings,now,{trustedSignal=false}={}){
+ data.manualObservations??=[];const prior=data.manualObservations.find(r=>r.signalId===signal.id);if(prior)return prior;
+ const features={...signalFeatures(signal),manualEntry:true,entryDelayBars:Math.max(0,(now-signal.confirmedAt)/(signal.tf*60000))};let excluded=null;
+ if(!trustedSignal)excluded='Captured signal was not issued by the local engine';
+ else if(signal.replay||signal.legacyProfile||asset?.replay||asset?.snapshot)excluded='Replay, snapshot or legacy settings cohort';
+ else if(!asset?.source)excluded='Live underlying source unavailable at click';
+ else if(!featureVector(features,signal.strategy))excluded='Closed-candle feature values are incomplete';
+ else {try{assertCausalFeatures(features,signal.confirmedAt);if(signal.confirmedAt>now)throw Error();}catch{excluded='Feature/candle timestamps are not causal';}}
+ const row={protocol:'signal-r-v1',trainingOrigin:'manual-paper',learningVersion:1,cohort:'manual',id:'manual-learning:'+trade.id,key:'manual-learning:'+trade.id,signalId:signal.id,profile:settingsProfile(settings),symbol:signal.symbol,market:signal.market,strategy:signal.strategy,strategies:signal.strategies||[signal.strategy],tf:signal.tf,dir:signal.dir,direction:signal.dir>0?'long':'short',source:asset?.source,featureSource:signal.source,fallback:!!(signal.fallback||asset?.fallback),conflicted:!!signal.conflicted,candleClose:signal.confirmedAt,features,observedAt:now,featureTime:now,statusAtObservation:signal.status,signalEntry:signal.price,stop:trade.stop,target:trade.target,rr:signal.rr,targetCapped:!!signal.targetCapped||signal.rr<settings.minRR,regime:signal.regime||'Unknown',etHour:features.etHour,expiresAt:trade.expiresAt,entry:null,mfeR:0,maeR:0,lastBarEnd:now,outcome:excluded?'unmeasurable':'awaiting forward entry',learningSettings:{costs:structuredClone(settings.costs),staleSeconds:settings.staleSeconds},trainingExcludedReason:excluded,trainingVerified:false};
+ data.manualObservations.push(row);trade.learning={enabled:true,observationId:row.id,reason:excluded||'Tracking a subsequent observed underlying entry and exit; option P&L is separate'};return row;
+}
+export function resolveManualLearning(data,assets,settings,now){
+ data.manualObservations??=[];const pending=data.manualObservations.filter(r=>!r.closedAt&&r.outcome!=='unmeasurable'),safe=Object.fromEntries(Object.entries(assets).map(([symbol,a])=>[symbol,a.replay||a.snapshot?{...a,quote:null,bars:[]}: {...a,quote:a.quote?.time>now?null:a.quote}]));
+ const before=new Set(data.manualObservations.filter(r=>r.trainingVerified).map(r=>r.id));let changed=false;for(const row of pending)changed=observeSignalOutcomes({observations:[row]},[],safe,row.learningSettings||settings,now)||changed;
+ for(const row of pending)if(row.closedAt&&Number.isFinite(row.realizedR)&&!row.trainingExcludedReason){row.trainingVerified=true;row.entryBasis='observed';row.exitBasis='observed';if(!before.has(row.id))data.manualLearningRevision=(data.manualLearningRevision||0)+1;}
+ return changed;
+}
+export function manualLearningSummary(data,profile,includeFallback=false){
+ const trades=data.trades.filter(t=>!profile||t.profile===profile),rows=(data.manualObservations||[]).filter(r=>!profile||r.profile===profile),measured=rows.filter(r=>r.trainingVerified&&Number.isFinite(r.realizedR)),eligible=measured.filter(r=>!r.targetCapped&&(!r.fallback||includeFallback));
+ return {total:trades.length,tracked:rows.length,pending:rows.filter(r=>!r.closedAt&&r.outcome!=='unmeasurable').length,measured:measured.length,eligible:eligible.length,unmeasurable:rows.filter(r=>r.outcome==='unmeasurable').length,legacy:trades.filter(t=>!rows.some(r=>r.signalId===t.signalId)).length,estimatedOptionScenarios:trades.filter(t=>t.market==='options'&&t.priceBasis==='estimated').length,underlying:summarizeR(measured),filtered:{fallback:includeFallback?0:measured.filter(r=>r.fallback).length,capped:measured.filter(r=>r.targetCapped).length},reasons:Object.fromEntries([...new Set(rows.map(r=>r.trainingExcludedReason||r.reason).filter(Boolean))].map(reason=>[reason,rows.filter(r=>(r.trainingExcludedReason||r.reason)===reason).length])),note:'Manual learning uses observed underlying stock/crypto R after market costs, never modeled option P&L. Features are frozen at click from the original closed candle. Only causal, current-profile, complete, non-overlapping outcomes enter training; fallback/capped filters still apply. Manual choices are tagged separately from automatic entries. Older simulations without captured features remain review-only.'};
+}

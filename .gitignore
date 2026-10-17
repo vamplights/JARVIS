@@ -1,0 +1,24 @@
+# Runtime information is private and unique to each computer.
+/data/
+/node_modules/
+/.env
+/.env.*
+!/.env.example
+*.dpapi*
+*.pem
+*.key
+*.pfx
+*.p12
+*.log
+*.tmp
+*.zip
+*.bak
+*.before-*
+/backups/
+/outputs/
+/work/
+/.codex/
+/.agents/
+/.vscode/
+.DS_Store
+Thumbs.db

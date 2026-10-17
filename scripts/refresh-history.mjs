@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {PublicMarket} from '../public-market.mjs';
+import {migrateSettings} from '../engine.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=process.env.JARVIS_DATA_DIR||path.join(root,'data'),settingsPath=process.argv[2]||path.join(dir,'journal-settings.json');
+const stored=JSON.parse(fs.readFileSync(settingsPath,'utf8')),settings=migrateSettings(stored.settings||stored,{existing:true});
+const history=new PublicMarket({dir,settings:()=>settings});
+const original=history.download.bind(history);history.download=async(...args)=>{const r=await original(...args);console.log(r.symbol+' '+r.base/60+'m '+r.bars.length+' bars; '+r.gaps.length+' gaps'+(r.partial?' (partial: '+r.errors[0]?.error+')':''));return r;};
+await history.refreshHistory();console.log('History refresh finished: '+Object.keys(history.status.downloads).length+' datasets');
