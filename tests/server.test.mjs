@@ -39,10 +39,14 @@ test('Local API persists journal, enforces shared counters, validates input, and
  st=await get();assert.equal(st.risk.used,3);assert.equal(st.risk.remaining,0);assert.equal(st.risk.streak,0);assert.equal(st.risk.locked,true);assert.equal(st.risk.pnl,6);
  assert.equal((await post('/api/journal',{...base,signalId:'TEST-4',decision:'skipped',closedAt:null,pnl:null})).status,200);assert.equal((await get()).risk.used,3);
  assert.equal((await post('/api/journal',{...first,notes:'QA correction only'})).status,200);assert.equal((await get()).journal.length,4);
- assert.equal((await post('/api/journal',{...base,signalId:'bad',closedAt:null,pnl:1})).status,400);
+ assert.equal((await post('/api/journal',{...base,signalId:'bad',closedAt:'invalid',pnl:1})).status,400);
  const stored=JSON.parse(await readFile(path.join(dir,'journal-settings.json'),'utf8'));assert.equal(stored.journal.length,4);assert.equal(stored.journal.every(j=>j.provenance==='MANUAL'),true);
  const csv='time,open,high,low,close,volume\n'+Array.from({length:100},(_,i)=>`${1791504000+i*60},100,101,99,100,10`).join('\n');
  assert.equal((await post('/api/import',{symbol:'SPY',csv})).status,200);st=await get();assert.equal(st.assets.find(a=>a.symbol==='SPY').replay,true);assert.equal(st.assets.find(a=>a.symbol==='SPY').quote,null);const chart=await fetch(origin+'/api/chart?symbol=SPY&tf=15').then(r=>r.json());assert.equal(chart.base,60);assert.equal(chart.bars.length,100);assert.equal((await fetch(origin+'/api/chart?symbol=../secret&tf=15')).status,400);
  assert.equal((await post('/api/import',{symbol:'SPY',csv:csv.replace(',10\n',',\n')})).status,400);assert.equal((await post('/api/review/run',{})).status,200);const reports=await fetch(origin+'/api/report-cards').then(r=>r.json());assert.ok(reports.length);assert.equal(reports[0].models.stocks.status,'learning');
+ for(const [pnl,outcome]of [[25,'win'],[-10,'loss'],[0,'breakeven']]){const reply=await post('/api/journal',{symbol:'SPY',pnl});assert.equal(reply.status,200);const {record:r}=await reply.json();assert.equal(r.pnl,pnl);assert.equal(r.outcome,outcome);assert.equal(r.market,'stocks');assert.ok(Number.isFinite(Date.parse(r.time)));assert.ok(Date.parse(r.closedAt)>=Date.parse(r.time));assert.equal(r.entry,null);assert.equal(r.size,null);}
+ const simple=(await get()).journal.find(r=>r.pnl===25);const corrected=await post('/api/journal',{id:simple.id,symbol:'SPY',pnl:30});assert.equal(corrected.status,200);assert.equal((await corrected.json()).record.closedAt,simple.closedAt);
+ assert.equal((await post('/api/journal',{pnl:20})).status,400);assert.equal((await post('/api/journal',{symbol:'SPY',pnl:'not a number'})).status,400);
+ assert.equal((await post('/api/journal',{market:'options',symbol:'SPY CALL',pnl:10,entry:1,size:1})).status,200);
  }finally{child.kill();await new Promise(resolve=>child.exitCode!==null?resolve():child.once('exit',resolve));const resolved=path.resolve(dir);assert.ok(resolved.startsWith(work+path.sep));await rm(resolved,{recursive:true,force:true});}
 });

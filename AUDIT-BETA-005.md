@@ -374,3 +374,24 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 
 ## 2026-10-17 — Private GitHub development checkout
 - Added repository-wide runtime/credential ignores, a cleaned shared settings template, safe first-start initialization, and laptop/PC workflow and handoff notes. Existing local settings/journals are never overwritten; authentication, trading records and learning results remain per-device. Added an initializer regression check; no signal or execution policy changed.
+
+## Crypto exchange selector — 2026-10-18
+- Replaced free-text venue with Robinhood/Coinbase choices. Selection loads editable trading costs through the existing settings save/cohort flow. Opening settings preserves saved fees; Coinbase Advanced names display as Coinbase.
+- Coinbase US Advanced entry-tier taker preset: 90 bps per side. Robinhood default market-maker routing: zero commission plus assumed 190 bps round-trip spread, a conservative estimate based on published 95 bps per-side routing compensation, not a guaranteed customer spread. Live spread still takes precedence. Other routes/account tiers require editing costs.
+- Explained variable blockchain transfer fees separately. Warning checks venue selection rather than assuming every 60 bps account fee is unconfigured.
+- Sources: https://www.coinbase.com/blog/were-lowering-fees-for-many-active-traders-on-coinbase-advanced ; https://cdn.robinhood.com/assets/robinhood/legal/rhc-fee-schedule.pdf ; https://robinhood.com/us/en/support/articles/360022216832/
+
+## Automatic signal contract books — 2026-10-19
+- Visible live intraday stock signals now load their own nearest listed expiry and call/put quotes automatically, prioritizing confirmed setups. Requests are deduplicated by symbol, serialized, reused between refreshes, and backed off on errors/rate limits. Inactive books are removed.
+- Each signal plan and manual-paper request reads its matching book instead of the single selected options chain. The options browser remains independently selectable. Paper tracking sees the union of loaded contracts; held-contract polling remains intact.
+- Existing fresh-quote, listed-expiry, liquidity, regular-session, frozen-thesis and no-order requirements remain unchanged. Loading a chain does not guarantee a qualified contract.
+- Regression coverage verifies multiple simultaneous signal books, matching plans, unchanged browser selection, caching/refresh, request deduplication, filtering, cleanup and provider/rate-limit handling.
+
+## Manual journal Save fix — 2026-10-19
+- Read the form identifier with getAttribute instead of the shadowable form.id property. The hidden input named id previously masked the form identifier, causing journal submissions to skip every save branch silently. New records and edits keep their existing record IDs and server validation.
+- Journal save errors now appear within the modal, where the user can see them and correct their entry. No journal contents or risk rules were changed.
+
+## Quick P/L journal — 2026-10-19
+- Symbol and net realized P/L are the only required form fields. Market, execution details, notes and dates are grouped under optional details. Positive, negative and zero P/L are supported.
+- Missing entry/close timestamps default to bookkeeping time; existing record dates are preserved on P/L-only corrections. A provided close time can supply the date when entry is absent. Optional option multipliers no longer block manually entered P/L.
+- Records remain manual, not verified fills or model training evidence. Existing journal totals and daily risk accounting remain in place.

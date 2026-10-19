@@ -19,8 +19,10 @@ test('Manual journal form retains every record field once and separates essentia
  const record={id:'old',symbol:'SPY',market:'options',entry:1.25,exit:1.4,size:2,contractMultiplier:100,pnl:28,closedAt:'2026-10-15T10:30',plannedRisk:25,signalId:'signal',notes:'<script>alert(1)</script>',reference:'chart',decision:'taken'};
  const html=manualTradeForm(record,helpers),names=[...html.matchAll(/name="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(names.sort(),['id','time','market','symbol','decision','strategy','signalId','plannedEntry','stop','exitScenario','plannedRisk','reasonCode','entry','exit','size','contractMultiplier','pnl','closedAt','reference','notes'].sort());
- assert.match(html,/1 · Trade details/);assert.match(html,/2 · Execution/);assert.match(html,/Closing results/);assert.match(html,/Plan & context/);assert.match(html,/References/);assert.match(html,/name="entry" value="1.25"/);assert.match(html,/name="contractMultiplier" value="100"/);assert.ok(!html.includes('<script>'));
- assert.match(html,/<details class="journal-form-details" open><summary>Closing results/);assert.match(manualTradeForm({},helpers),/<details class="journal-form-details" ><summary>Closing results/);assert.match(manualTradeForm({pnl:0},helpers),/<details class="journal-form-details" open>/);
+ assert.match(html,/Profit &amp; loss/);assert.match(html,/Optional trade details/);assert.match(html,/name="entry" value="1.25"/);assert.match(html,/name="contractMultiplier" value="100"/);assert.ok(!html.includes('<script>'));
+ assert.match(html,/<details class="journal-form-details"><summary>Optional trade details/);
+ const required=[...html.matchAll(/<input[^>]*>/g)].filter(m=>/\brequired\b/.test(m[0])).map(m=>m[0].match(/name="([^"]+)"/)[1]);assert.deepEqual(required,['symbol','pnl']);
+
  assert.match(manualTradeForm({},helpers),/<option value="stocks" selected/);
 });
 test('Option multiplier visibility follows market without disabling or clearing recorded values',()=>{
