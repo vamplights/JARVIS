@@ -15,11 +15,11 @@ export function historyStart(now,settings){
  throw new Error('No verified recent stock trading days in calendar');
 }
 export class RobinhoodLive {
- constructor({client,settings,onChange=()=>{},save=()=>{},loadChains=()=>[],saveChains=()=>{}}){this.client=client;this.settings=settings;this.onChange=onChange;this.save=save;this.assets={};this.histories=new Map();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.error=null;this.failures=0;this.nextRefresh=null;this.busy=false;this.timer=null;this.epoch=0;this.chains=new Map(loadChains());this.saveChains=saveChains;this.chainJobs=new Map();this.chainErrors=new Map();this.warmingChains=false;this.signalBooks=new Map();this.signalOptionsBusy=false;this.signalOptionsRetryAt=0;this.options={symbol:'SPY',expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};}
- get status(){const seconds=session(Date.now(),this.settings()).regular?15:60;return {connected:this.client.connected,status:!this.client.connected?'SIGN IN REQUIRED':this.error?'RETRYING':this.lastSuccess?'CONNECTED':'CONNECTING',error:this.error,lastSuccess:this.lastSuccess,nextRefresh:this.nextRefresh,quoteIntervalSeconds:seconds,historyAt:this.historyAt};}
+ constructor({client,settings,onChange=()=>{},save=()=>{},loadChains=()=>[],saveChains=()=>{}}){this.client=client;this.settings=settings;this.onChange=onChange;this.save=save;this.assets={};this.histories=new Map();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.historyError=null;this.historyJob=null;this.historyNextRefresh=0;this.optionJob=null;this.error=null;this.failures=0;this.nextRefresh=null;this.busy=false;this.timer=null;this.epoch=0;this.chains=new Map(loadChains());this.saveChains=saveChains;this.chainJobs=new Map();this.chainErrors=new Map();this.warmingChains=false;this.signalBooks=new Map();this.signalOptionsBusy=false;this.signalOptionsRetryAt=0;this.options={symbol:'SPY',expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};}
+ get status(){const seconds=session(Date.now(),this.settings()).regular?15:60;return {connected:this.client.connected,status:!this.client.connected?'SIGN IN REQUIRED':this.error?'RETRYING':this.lastSuccess?'CONNECTED':'CONNECTING',error:this.error,lastSuccess:this.lastSuccess,nextRefresh:this.nextRefresh,quoteIntervalSeconds:seconds,historyAt:this.historyAt,historyError:this.historyError};}
  start(){this.stopTimer();this.nextRefresh=Date.now();this.timer=setTimeout(()=>this.tick(),0);}
  stopTimer(){clearTimeout(this.timer);this.timer=null;}
- disconnect(){this.stopTimer();this.epoch++;this.signalBooks.clear();this.client.disconnect();this.assets={};this.histories.clear();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.nextRefresh=null;this.error=null;this.options={symbol:this.options.symbol,expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};this.onChange();}
+ disconnect(){this.stopTimer();this.epoch++;this.historyJob=null;this.optionJob=null;this.historyError=null;this.historyNextRefresh=0;this.signalBooks.clear();this.client.disconnect();this.assets={};this.histories.clear();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.nextRefresh=null;this.error=null;this.options={symbol:this.options.symbol,expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};this.onChange();}
  async tick(force=false){
   if(this.busy||!this.client.connected)return;if(!force&&this.nextRefresh>Date.now()){this.schedule(this.nextRefresh-Date.now());return;}
   this.stopTimer();this.busy=true;const epoch=this.epoch;let delay=session(Date.now(),this.settings()).regular?15000:60000;
@@ -27,18 +27,39 @@ export class RobinhoodLive {
    const symbols=this.settings().stocks,quotes={results:[]};
    for(let i=0;i<symbols.length;i+=20){const batch=await this.client.call('get_equity_quotes',{symbols:symbols.slice(i,i+20)});if(epoch!==this.epoch)return;quotes.results.push(...(batch.results||[]));}
    if(!quotes.results?.length)throw new Error('No Robinhood stock quotes returned');this.quotes=quotes;
-   const historyDue=!this.historyAt||Date.now()-this.historyAt>=(session(Date.now(),this.settings()).regular?60000:300000)||symbols.some(s=>!this.histories.has(s));
-   if(historyDue){
-    for(let i=0;i<symbols.length;i+=10){const batch=symbols.slice(i,i+10),start=historyStart(Date.now(),this.settings());const data=await this.client.call('get_equity_historicals',{symbols:batch,interval:'minute',bounds:'regular',adjustment_type:'split',start_time:start,end_time:new Date().toISOString()});if(epoch!==this.epoch)return;
-     for(const h of data.results||[])this.histories.set(h.symbol,{...h,bars:(h.bars||[]).map(b=>b?{...b,complete:Date.parse(b.begins_at)+60000<=Date.now()-2000}:b)});
-    }this.historyAt=Date.now();
-   }
-   const capturedAt=new Date().toISOString(),history={results:symbols.map(s=>this.histories.get(s)).filter(Boolean)},raw={provider:'Robinhood MCP',capturedAt,quotes:this.quotes,history};
-   const parsed=parseRobinhoodSnapshot(raw);this.assets=Object.fromEntries(Object.entries(parsed.assets).map(([s,a])=>[s,{...a,replay:false,snapshot:false,source:'Robinhood MCP · automatic quote polling · regular-session candles',historyAt:this.historyAt}]));
-   this.lastSuccess=Date.now();this.error=null;this.failures=0;this.save(raw);this.onChange();this.warmChains();
-   if(!this.options.loading){if(!this.options.contracts.length)await this.selectOptions({symbol:symbols.includes(this.options.symbol)?this.options.symbol:symbols[0]});else await this.refreshOptions(epoch);}
+   this.publishAssets();this.lastSuccess=Date.now();this.error=null;this.failures=0;this.onChange();
+   this.refreshHistory(epoch);this.warmChains();this.refreshSelectedOptions(epoch);
+
   }catch(e){if(epoch===this.epoch){this.error=e.message;this.failures++;delay=Math.min(900000,Math.max(e.retryMs||0,60000*2**Math.min(this.failures-1,4)));}}
   finally{this.busy=false;if(epoch===this.epoch&&this.client.connected)this.schedule(delay);this.onChange();}
+ }
+ // Quote polling never waits for historical downloads or option-chain work.
+ publishAssets(){
+  const symbols=this.settings().stocks,capturedAt=new Date().toISOString(),history={results:symbols.map(symbol=>this.histories.get(symbol)||{symbol,interval:'minute',bounds:'regular',bars:[]})},raw={provider:'Robinhood MCP',capturedAt,quotes:this.quotes,history};
+  const parsed=parseRobinhoodSnapshot(raw);this.assets=Object.fromEntries(Object.entries(parsed.assets).map(([symbol,a])=>[symbol,{...a,replay:false,snapshot:false,source:'Robinhood MCP · automatic quote polling · regular-session candles',historyAt:this.historyAt}]));this.save(raw);
+ }
+ restoreHistory(raw){parseRobinhoodSnapshot(raw);for(const h of raw.history.results)if(this.settings().stocks.includes(h.symbol))this.histories.set(h.symbol,h);}
+ refreshHistory(epoch=this.epoch){
+  const symbols=this.settings().stocks,interval=session(Date.now(),this.settings()).regular?60000:300000;
+  if(this.historyJob||this.historyNextRefresh>Date.now()||this.historyAt&&Date.now()-this.historyAt<interval&&symbols.every(s=>this.histories.has(s)))return this.historyJob;
+  const job=(async()=>{await Promise.resolve();const errors=[];try{
+   for(const symbol of symbols){if(epoch!==this.epoch)return;try{
+    const prior=this.histories.get(symbol)?.bars?.at(-1),last=Date.parse(prior?.begins_at),start=historyStart(Date.now(),this.settings()),startTime=Number.isFinite(last)?new Date(Math.max(Date.parse(start),last-120000)).toISOString():start;
+    const data=await this.client.call('get_equity_historicals',{symbols:[symbol],interval:'minute',bounds:'regular',adjustment_type:'split',start_time:startTime,end_time:new Date().toISOString()});if(epoch!==this.epoch)return;
+    const h=data.results?.find(r=>r.symbol===symbol);if(!h?.bars?.length)throw Error('No minute candles returned for '+symbol);
+    // Validate each response before merging and never mix other providers into this history.
+    parseRobinhoodSnapshot({provider:'Robinhood MCP',capturedAt:new Date().toISOString(),quotes:this.quotes,history:{results:[h]}});
+    const merged=new Map((this.histories.get(symbol)?.bars||[]).map(b=>[b.begins_at,b]));for(const bar of h.bars)if(bar)merged.set(bar.begins_at,{...bar,complete:Date.parse(bar.begins_at)+60000<=Date.now()-2000});
+    this.histories.set(symbol,{...h,bars:[...merged.values()].sort((a,b)=>Date.parse(a.begins_at)-Date.parse(b.begins_at)).slice(-2000)});this.publishAssets();this.onChange();
+   }catch(e){errors.push(symbol+': '+e.message);if(e.status===429||errors.length>=3)break;}}
+   if(epoch!==this.epoch)return;
+   if(errors.length){this.historyError=errors.join('; ');this.historyNextRefresh=Date.now()+30000;}else{this.historyAt=Date.now();this.historyError=null;this.publishAssets();}
+  }catch(e){if(epoch===this.epoch){this.historyError=e.message;this.historyNextRefresh=Date.now()+30000;}}
+  finally{if(this.historyJob===job)this.historyJob=null;this.onChange();}})();this.historyJob=job;return job;
+ }
+ refreshSelectedOptions(epoch=this.epoch){
+  if(this.optionJob||this.options.loading)return this.optionJob;
+  const job=(async()=>{await Promise.resolve();try{if(!this.options.contracts.length)await this.selectOptions({symbol:this.settings().stocks.includes(this.options.symbol)?this.options.symbol:this.settings().stocks[0]});else await this.refreshOptions(epoch);}catch(e){if(epoch===this.epoch)this.options.error=e.message;}finally{if(this.optionJob===job)this.optionJob=null;this.onChange();}})();this.optionJob=job;return job;
  }
  schedule(delay){this.stopTimer();this.nextRefresh=Date.now()+delay;this.timer=setTimeout(()=>this.tick(),delay);this.timer.unref?.();}
  // Populate every watchlist's expiry independently of news or the selected option chain.

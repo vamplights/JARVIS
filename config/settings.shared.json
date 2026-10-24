@@ -1,11 +1,11 @@
 {
   "strictContinuations": true,
   "showInactiveSignals": false,
-  "publicOptionResearch": true,
+  "publicOptionResearch": false,
   "qualificationMode": "balanced",
   "allowOneMinute": true,
   "callWindowBars": 3,
-  "stockStaleSeconds": 150,
+  "stockStaleSeconds": 30,
   "minWatchScore": 45,
   "studyMode": false,
   "sourcePreference": "cnbc",
@@ -757,5 +757,6 @@
   "extraClosures": [],
   "earlyCloses": {},
   "experienceVersion": 1,
-  "sidebarSubtitle": ""
+  "sidebarSubtitle": "",
+  "liveSignalsOnly": true
 }

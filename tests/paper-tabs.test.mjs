@@ -32,6 +32,9 @@ test('Manual tab includes both legacy and sandbox clicks, excludes auto entries 
  sandbox.data.trades=[{...trade,id:'sandbox',simulationMode:'unrestricted',priceBasis:'estimated'},{...trade,id:'old-cohort',profile:'older'},{...trade,id:'crypto',market:'crypto',symbol:'BTC-USD'}];
  const legacy=[{...trade,id:'legacy'},{...trade,id:'auto',source:'automatic'}];
  const report=sandbox.results(legacy,{market:'manual',profile:'current'});
+ const automatic=sandbox.results(legacy,{market:'options',profile:'current'});
+ assert.deepEqual(automatic.rows.map(r=>r.id),['auto']);assert.deepEqual(automatic.open.map(r=>r.id),['auto']);assert.equal(automatic.manualCount,0);assert.equal(automatic.unrestrictedCount,0);assert.equal(automatic.manualLearning,undefined);assert.match(automatic.note,/Automatic option entries only/);
+ assert.equal(sandbox.results(legacy,{profile:'current'}).rows.length,3); // Combined daily reports retain both option sources.
  assert.deepEqual(report.rows.map(r=>r.id),['legacy','sandbox','crypto']);assert.equal(report.open.length,3);assert.equal(report.rows.find(r=>r.id==='crypto').market,'crypto');
  assert.deepEqual(sandbox.results(legacy,{market:'manual',profile:'older'}).rows.map(r=>r.id),['old-cohort']);
  const html=paperPanel(report,{market:'manual'});assert.match(html,/<h1>Manual Option Trades<\/h1>/);assert.match(html,/paper-open-v2/);assert.match(html,/paper-closed-v2/);assert.match(html,/No closed trades for the selected cohort/);assert.ok(!html.includes('data-beta="market"'));assert.match(html,/ESTIMATED/);

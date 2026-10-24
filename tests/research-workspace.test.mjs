@@ -22,8 +22,8 @@ test('Independent section refreshes preserve the replay form and initialize ever
  assert.match(app,/if\(page==='intelligence'&&Date.now\(\)-historyLast>15000\)/);assert.match(app,/if\(page==='intelligence'&&Date.now\(\)-statsLast>8000\)/);
  assert.match(app,/function researchPage\(embedded=false\)/);assert.match(app,/id="replay-form"/);assert.match(app,/function performancePage\(embedded=false\)/);assert.match(app,/researchRoute\(location.hash.slice\(1\)\)/);
 });
-test('Jarvis 1.0 changes the displayed release without rewriting protocol identifiers or the JARVIS tab title',()=>{
- assert.equal(VERSION,'Jarvis 1.0');const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));assert.equal(pkg.version,'1.0.0');
- const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(app,/Jarvis 1.0/);assert.match(app,/intelligence:'Research, Confidence & Outcomes'/);assert.ok(!app.includes("performance:'Signal Outcomes'"));assert.match(html,/<title>JARVIS<\/title>/);
+test('Jarvis 1.25 changes the displayed release without rewriting protocol identifiers or the JARVIS tab title',()=>{
+ assert.equal(VERSION,'Jarvis 1.25');const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));assert.equal(pkg.version,'1.25.0');
+ const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(app,/Jarvis 1.25/);assert.match(app,/intelligence:'Research, Confidence & Outcomes'/);assert.ok(!app.includes("performance:'Signal Outcomes'"));assert.match(html,/<title>JARVIS<\/title>/);
  const auto=fs.readFileSync(new URL('../auto-paper.mjs',import.meta.url),'utf8');assert.match(auto,/beta010-paper-v1/);
 });

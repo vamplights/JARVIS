@@ -49,6 +49,27 @@ export class PaperLedger{
   for(const t of rows.filter(t=>t.closedAt)){const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(t.closedAt));daily[date]=(daily[date]||0)+t.pnl;}let equity=0;
   return {profile,cohorts:[...new Set(this.data.trades.filter(t=>t.market==='options'&&t.profile).map(t=>t.profile))].map(profile=>({profile,n:this.data.trades.filter(t=>t.profile===profile&&t.market==='options').length})),market:'options',n:p.overall.count,realizedPnl:p.overall.pnl,winRate:p.overall.winRate,profitFactor:p.overall.profitFactor,maxDrawdown:p.overall.maxDrawdown,avgR:null,curve,rows:selected,open:rows.filter(t=>!t.closedAt&&(!day||day===new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()))),history:Object.entries(daily).sort().filter(([date])=>!day||date<=day).map(([date,pnl])=>({date,pnl,equity:equity+=pnl})),buckets:{},missedFills:0,unmeasurable:0,realistic:{skipped:[],startingCapital:this.data.initialCapital},manualCount:selected.filter(t=>t.source==='manual-click').length,note:'Actual observed option asks/bids with slippage and per-contract fees. Manual and automatic option legs share the existing simulated paper cash/risk limits. Option P&L is separate from the underlying R, model labels and automatic stock/crypto scenarios.'};
  }
+ // One-contract option forward test: confirmation rules remain; premium/cash budgets do not gate simulation.
+ observeAutomaticOptions(signals,optionsForSymbol,settings,now=Date.now()){
+  this.data.automaticOptionQueue??=[];const profile=settingsProfile(settings);let changed=false;
+  for(const s of signals){
+   if(s.market!=='stocks'||s.status!=='CONFIRMED'||s.replay||s.legacyProfile||s.demo||s.inspectionOnly||s.conflicted||!Number.isFinite(s.confirmedAt)||s.confirmedAt>now||now>entryExpiresAt(s,settings)||!session(now,settings).regular)continue;
+   if(this.data.automaticOptionQueue.some(r=>r.signal.id===s.id&&r.profile===profile)||this.data.trades.some(t=>t.source==='automatic'&&t.signalId===s.id&&t.profile===profile))continue;
+   const plan=s.optionPlan;if(!plan?.contract?.id||plan.reality?.available!==true||plan.reality?.blocked!==false)continue;
+   this.data.automaticOptionQueue.push({signal:structuredClone(s),profile,queuedAt:now,settings:structuredClone(settings)});changed=true;
+  }
+  for(const row of this.data.automaticOptionQueue){
+   if(row.done)continue;const s=row.signal,cfg=row.settings;
+   if(row.profile!==profile||now>entryExpiresAt(s,cfg)){row.done=true;row.skip='Settings changed or entry window expired';changed=true;continue;}
+   const current=signals.find(x=>x.id===s.id);if(current?.status!=='CONFIRMED'||!session(now,cfg).regular)continue;
+   const plan=s.optionPlan,raw=optionsForSymbol(s.symbol)?.contracts?.find(c=>c.id===plan.contract.id),q=raw?.quote;
+   if(!raw||!q||q.time<=row.queuedAt||q.time>now||!optionContractEligible(raw,cfg,now))continue;
+   if(raw.multiplier!==plan.contract.multiplier||raw.expiration!==plan.contract.expiration||raw.symbol&&raw.symbol!==s.symbol||raw.type?.toUpperCase()!==plan.type||optionReality(s,raw,cfg).blocked)continue;
+   const costs=marketCosts(cfg,'stocks'),entry=q.ask*(1+costs.slippageBps/10000),fill={entry,size:1,reserved:entry*raw.multiplier+this.data.feePerContract};
+   this.data.trades.push({id:'auto-option:'+s.id+':'+profile,signalId:s.id,profile,source:'automatic',sizingMode:'one-contract-no-budget',market:'options',symbol:s.symbol,strategy:s.strategy,strategies:s.strategies,tf:s.tf,contractId:raw.id,optionType:plan.type,expiration:raw.expiration,multiplier:raw.multiplier,dir:1,underlyingDir:s.dir,...fill,stop:s.stop,target:s.target,openedAt:now,entryQuoteTime:q.time,lastChecked:now,lastBarEnd:now,expiresAt:now+s.tf*12*60000,feePerContract:this.data.feePerContract,slippageBps:costs.slippageBps,outcome:'active',pnl:null,optionPlan:structuredClone(plan),assumption:'Automatic option-only forward simulation. One contract regardless of premium or simulated cash allowance. Next observed eligible ask plus costs. Underlying stop/target triggers an observed option bid exit; no guaranteed option-dollar stop.'});row.done=true;changed=true;
+  }
+  this.data.automaticOptionQueue=this.data.automaticOptionQueue.filter(r=>!r.done);if(changed)this.save();
+ }
  heldOptionIds(){return [...new Set([...(this.data.optionObservations||[]).filter(r=>!r.closedAt&&r.outcome!=="unmeasurable").map(r=>r.contractId),...this.data.trades.filter(t=>t.market==='options'&&!t.closedAt).map(t=>t.contractId)])];}
  observe(signals,assets,options,settings,now=Date.now(),optionQuotes={}){
   // Signal IDs and paperConsidered enforce deduplication; never discard newly detected observations.

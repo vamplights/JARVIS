@@ -1,6 +1,6 @@
 # Development handoff
 
-JARVIS 1.0 is Node ESM, using built-in Node APIs; Node >=22 with WebSocket support. There are no package dependencies or real order routes.
+JARVIS 1.25 is Node ESM, using built-in Node APIs; Node >=22 with WebSocket support. There are no package dependencies or real order routes.
 
 Preserve frozen confirmed entry/stop/target plans, closed-candle evaluation, chronological/embargoed training, market-specific costs, source/freshness labels and settings-cohort isolation.
 

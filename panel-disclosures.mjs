@@ -1,3 +1,4 @@
+export function initialPanelOpen(page,preferences,key,fallback=false){return page==='settings'?false:preferences.isOpen(key,fallback);}
 // Presentation-only panel state. Never enters settingsProfile or a trading cohort.
 const STORAGE_KEY='jarvis.panel-disclosures.v1';
 export function clickablePanelHeader(head,button){
@@ -19,13 +20,13 @@ export function enhancePanels(root,{page,preferences}){
   const native=panel.tagName==='DETAILS';let head=panel.querySelector(':scope > .panel-head, :scope > .chart-head'),heading=native?panel.querySelector(':scope > summary'):panel.querySelector('h2,h3');
   const title=heading?.textContent.trim()||panel.querySelector('.tagline, .small-label')?.textContent.trim()||'Additional information',identity=panel.id||(head?.classList.contains('chart-head')?'price-chart':title),ordinal=counts.get(identity)||0;counts.set(identity,ordinal+1);
   const key=panelKey(page,identity,ordinal);if(panel.dataset.panelDisclosure)continue;panel.dataset.panelDisclosure=key;
-  if(native){panel.open=preferences.isOpen(key,panel.open);panel.addEventListener('toggle',()=>{if(panel.isConnected)preferences.set(key,panel.open);});records.push({panel,set(open){panel.open=open;preferences.set(key,open);}});continue;}
+  if(native){panel.open=initialPanelOpen(page,preferences,key,panel.open);panel.addEventListener('toggle',()=>{if(panel.isConnected)preferences.set(key,panel.open);});records.push({panel,set(open){panel.open=open;preferences.set(key,open);}});continue;}
   if(!head){head=doc.createElement('div');head.className='panel-head';if(heading)head.append(heading);else{heading=doc.createElement('h2');heading.textContent=title;head.append(heading);}panel.prepend(head);}
   const body=doc.createElement('div');body.className='panel-disclosure-body';body.id='panel-body-'+encodeURIComponent(key);
   for(const node of [...panel.childNodes])if(node!==head)body.append(node);panel.append(body);
   const button=doc.createElement('button');button.type='button';button.className='small panel-toggle';button.setAttribute('aria-controls',body.id);head.append(button);
   const set=open=>{body.hidden=!open;panel.classList.toggle('panel-collapsed',!open);button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',(open?'Collapse ':'Expand ')+title);button.textContent=open?'▾ Hide':'▸ Show';};
-  set(preferences.isOpen(key,head.classList.contains('chart-head')||panel.id==='signal-radar'||panel.id==='news-worth-a-look-v2'||panel.id==='appearance-settings'||['paper-filters-v2','paper-open-v2','paper-closed-v2'].includes(panel.id)||panel.id.startsWith('top-picks-')||title==='Watchlist'||/Worth a look|Notable movers/i.test(title)));
+  set(initialPanelOpen(page,preferences,key,head.classList.contains('chart-head')||panel.id==='signal-radar'||panel.id==='news-worth-a-look-v2'||panel.id==='appearance-settings'||['paper-filters-v2','paper-open-v2','paper-closed-v2'].includes(panel.id)||panel.id.startsWith('top-picks-')||title==='Watchlist'||/Worth a look|Notable movers/i.test(title)));
   button.addEventListener('click',()=>{const open=body.hidden;set(open);preferences.set(key,open);});clickablePanelHeader(head,button);records.push({panel,set(open){set(open);preferences.set(key,open);}});
  }
  // Reuse existing controls if an asynchronous panel (e.g. history) was replaced.

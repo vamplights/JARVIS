@@ -1,4 +1,4 @@
-# JARVIS 1.0
+# JARVIS 1.25
 
 Local market research, signal cards, Top Picks and paper trading. No real order routes.
 

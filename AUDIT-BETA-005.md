@@ -267,9 +267,9 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 - Preserved the separate measured profit model, chronological validation, cohort isolation, expected-R estimates and existing paper/alert eligibility. Display confidence cannot manufacture a validated prediction or feed itself into learning labels.
 - Added the specific account/schedule block reason directly to cards and the signal dialog. Existing risk gates and unrestricted manual option simulation remain unchanged.
 
-## 2026-10-15 — Outcome-trained estimates adapted from Rishi JARVIS
+## 2026-10-15 — Outcome-trained estimates adapted from Jarvis JARVIS
 - Corrected the misleading raw-rule-score confidence introduced in the prior update. A 100/100 checklist no longer becomes a 100% profit estimate, regardless of confirmation status.
-- Adapted Rishi's regularized logistic approach: strategy/timeframe, direction, market regime and available individual checks, with measured forward outcomes weighted twice historical outcomes. Stock and crypto models remain separate. Sparse cohorts use smoothed historical strategy results (explicit market-baseline fallback); no outcomes are labeled unavailable instead of inventing a probability.
+- Adapted Jarvis's regularized logistic approach: strategy/timeframe, direction, market regime and available individual checks, with measured forward outcomes weighted twice historical outcomes. Stock and crypto models remain separate. Sparse cohorts use smoothed historical strategy results (explicit market-baseline fallback); no outcomes are labeled unavailable instead of inventing a probability.
 - Added preliminary models at 40 market outcomes, without a 200-trade/15-session display requirement. Preserved profile filtering, causal features, overlap deduplication, chronological 70/30 validation with a 12-bar purge/embargo, after-cost outcome labels and separate validated model/alert eligibility. Later validation labels never fit model weights. Predictions are bounded away from 0/100 certainty, carry samples/baseline/drivers, and cannot override signal status. Daily reports retain preliminary-model Brier/baseline metrics.
 - Put call/put, strike, expiration and bid/ask directly on compact cards above the collapsed details. Missing contracts remain directional ideas; delayed Cboe candidates retain source/delay labels. No new order route or trade action was added.
 
@@ -337,10 +337,10 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 - Reorganized manual trade entry into Trade Details, Execution, optional Closing Results, Plan & Context, Notes and optional References. Option multipliers show for options only. Existing record fields, manual P/L, edit behavior, duplicate guards and server validation remain intact; no prices or outcomes are invented.
 
 
-## Jarvis 1.0 — Direct Rishi paper-trading port
-- Ported Rishi's web/paper.js algorithm body into rishi-paper-core.mjs; the untouched original is retained in docs/rishi-paper-original.txt. There is no policy switch. Every newly confirmed, fresh, non-demo live signal is forward-tested, including enabled 1m; prediction confidence is recorded rather than used as an entry cutoff.
-- The adapter maps JARVIS fields to Rishi's rows: closed 1m candles, market fills, stop-first resolution, selected 1.5R/2R target from the actual fill, stocks held to regular/early session close and crypto to four hours, 3,000-row retention per cohort, net R/win/MFE and automatic learning. Existing fixed-risk dollar charts and Realistic Account remain projections of these results.
-- Compatibility protections live in the adapter: only same-source closed minute candles observed after confirmation are supplied, avoiding Rishi's confirmation-minute open timing defect. Existing per-market configured costs and frozen settings are translated into the original costR calculation. Incomplete future outcomes are never fabricated. Replay parameters and held-out data were not tuned.
+## Jarvis 1.0 — Direct Jarvis paper-trading port
+- Ported Jarvis's web/paper.js algorithm body into jarvis-paper-core.mjs; the untouched original is retained in docs/jarvis-paper-original.txt. There is no policy switch. Every newly confirmed, fresh, non-demo live signal is forward-tested, including enabled 1m; prediction confidence is recorded rather than used as an entry cutoff.
+- The adapter maps JARVIS fields to Jarvis's rows: closed 1m candles, market fills, stop-first resolution, selected 1.5R/2R target from the actual fill, stocks held to regular/early session close and crypto to four hours, 3,000-row retention per cohort, net R/win/MFE and automatic learning. Existing fixed-risk dollar charts and Realistic Account remain projections of these results.
+- Compatibility protections live in the adapter: only same-source closed minute candles observed after confirmation are supplied, avoiding Jarvis's confirmation-minute open timing defect. Existing per-market configured costs and frozen settings are translated into the original costR calculation. Incomplete future outcomes are never fabricated. Replay parameters and held-out data were not tuned.
 - Original probability-policy rows and their execution rules remain available as earlier cohorts, without a switch or reprocessing them under the new algorithm. The new protocol marker isolates new models/results. Manual paper buttons, manual ledger/option P&L and manual learning are preserved.
 
 ## 2026-10-16 — Prefer same-day option ideas
@@ -354,10 +354,10 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 ## 2026-10-16 — Estimated win percent badge bands
 - Renamed signal-card percentage captions to Estimated win percent. Color now follows the displayed whole percent: 0–27 red, 28–49 yellow, and 50+ green, independently of the model baseline. Unavailable estimates stay neutral. Probability calculations and trading/learning rules are unchanged.
 
-## 2026-10-16 — Rishi-style Top Picks and outcome probabilities
-- Top Picks now use the same confidence estimate displayed on each card: confirmed/current signals, score 80+ by default, and a 35% model threshold. Optional quality failures, capped structural targets, the strict 200-trade model and baseline/positive-expected-R validation no longer veto this selection. Session, risk, freshness, hidden-card and frozen-plan integrity remain intact; uncalibrated picks are labeled. Historical fallback vetoes nonpositive average R after 15 matching outcomes; losing setups can be muted by the Rishi-style 90% Wilson test after 40 weighted outcomes. Settings thresholds remain editable.
-- Retained Rishi's logistic model source verbatim in rishi-model-core.mjs. The compatibility adapter maps existing factor names, uses his strategy/variant, direction, rule score, regime and selected checks, and weights observed forward/manual outcomes twice historical replay. Expanded numeric features that Rishi does not use no longer influence this displayed estimate; the stricter model remains available for research/validated alerts.
-- Found tiny historical groups (including two wins in two outcomes) were displayed as 75% by the previous smoothed fallback. Historical percentages now need 15 matching strategy/variant/timeframe outcomes, with score-band fallback like Rishi. Below this, show Learning and sample counts rather than extrapolating a percentage. There is no artificial downward adjustment or 50% ceiling.
+## 2026-10-16 — Jarvis-style Top Picks and outcome probabilities
+- Top Picks now use the same confidence estimate displayed on each card: confirmed/current signals, score 80+ by default, and a 35% model threshold. Optional quality failures, capped structural targets, the strict 200-trade model and baseline/positive-expected-R validation no longer veto this selection. Session, risk, freshness, hidden-card and frozen-plan integrity remain intact; uncalibrated picks are labeled. Historical fallback vetoes nonpositive average R after 15 matching outcomes; losing setups can be muted by the Jarvis-style 90% Wilson test after 40 weighted outcomes. Settings thresholds remain editable.
+- Retained Jarvis's logistic model source verbatim in jarvis-model-core.mjs. The compatibility adapter maps existing factor names, uses his strategy/variant, direction, rule score, regime and selected checks, and weights observed forward/manual outcomes twice historical replay. Expanded numeric features that Jarvis does not use no longer influence this displayed estimate; the stricter model remains available for research/validated alerts.
+- Found tiny historical groups (including two wins in two outcomes) were displayed as 75% by the previous smoothed fallback. Historical percentages now need 15 matching strategy/variant/timeframe outcomes, with score-band fallback like Jarvis. Below this, show Learning and sample counts rather than extrapolating a percentage. There is no artificial downward adjustment or 50% ceiling.
 - Kept chronological 70/30 validation with the existing 12-bar embargo, same-settings/market isolation, non-overlapping outcomes, causal frozen features, per-market costs and observed-only manual learning. The confidence protocol is versioned and rebuilt on startup; old stored coefficients cannot be used with the new feature vocabulary. No held-out parameter tuning or real order routes were added.
 - Automatic forward paper rows now freeze the displayed estimate at issuance, keeping probability-bucket reports consistent with card/Top Pick selection. Existing positions, manual simulations, journals and previously issued predictions are retained.
 
@@ -395,3 +395,72 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 - Symbol and net realized P/L are the only required form fields. Market, execution details, notes and dates are grouped under optional details. Positive, negative and zero P/L are supported.
 - Missing entry/close timestamps default to bookkeeping time; existing record dates are preserved on P/L-only corrections. A provided close time can supply the date when entry is absent. Optional option multipliers no longer block manually entered P/L.
 - Records remain manual, not verified fills or model training evidence. Existing journal totals and daily risk accounting remain in place.
+
+## JARVIS-only project naming — 2026-10-19
+- Renamed model, forward-testing, core, migration and test files to JARVIS; updated imports, symbols, comments and documentation. Trading algorithms and qualification rules are unchanged.
+- Added a local branding migration that backs up affected data files, remaps known settings cohorts and forward-test identifiers, and updates model protocol labels so existing outcomes stay connected. No journal notes or financial values are rewritten.
+
+## Robinhood timeout resilience — 2026-10-22
+- Stock quote polling now publishes independently of historical downloads and selected options. Historical/option failures retain their own diagnostics instead of disabling the stock feed and delaying its next quote poll. Closed-candle and freshness requirements remain unchanged.
+- Approved market-data reads retry temporary timeouts/network failures once. Rate limits retain provider backoff; timeouts do not clear saved authorization. A rejected access token first attempts renewal through existing refresh authorization; genuinely expired authorization still requires sign-in.
+- Concurrent reads share one initialization. Background market-data work is capped at two active calls, with a third slot reserved for prioritized stock quotes. Disconnect invalidates queued work. Authentication and order-route restrictions remain intact.
+- Tests cover transient/repeated/streamed timeouts, refresh authorization, rate limits, initialization sharing, quote priority, and independent stock/history/options failures.
+
+## Live-only signals and feed recovery — 2026-10-22
+- Added liveSignalsOnly: signal evaluation excludes unofficial, imported and snapshot fallback data; retained theses become stale when their original primary feed or quote is unavailable. Research history remains accessible. Delayed option research is disabled in shared settings, and stock quote freshness is 30 seconds.
+- Robinhood restores validated same-provider historical candles locally, then updates one symbol at a time from its last known minute instead of downloading large multi-stock snapshots repeatedly. Responses validate before merge, partial results publish promptly, and failures are isolated. Cached history never supplies a fabricated current quote.
+- Coinbase connections that never open now time out and schedule one reconnect. The stale-stream watchdog schedules recovery directly rather than relying solely on a close event.
+- Existing closed-candle confirmation, frozen plans, cost models, chronological validation and no-order routes are unchanged.
+
+## Journal market shortcut — 2026-10-22
+- New journal entries default to Options. Market is visible beside Symbol and P/L rather than inside optional details. Existing records and explicitly prefilled trades retain their market.
+
+## Results presentation, themes and journal periods — 2026-10-23
+- Paper results now color positive realized/unrealized P/L and R green, losses red, and zero/missing values neutral. Summary tiles improve spacing and typography; chart and bucket calculations are unchanged.
+- Signal Outcomes presents key counts and average R in summary tiles. Narrower tables retain all context in per-row expandable details, including direction, regime, ET hour, cohort, target caps and pooled symbols. All exports and measurement logic remain intact.
+- Added five local appearance presets (Midnight, Ocean, Amethyst, Graphite, Daylight) in an always-visible section at the bottom of Settings. Selection applies immediately and persists in browser storage without changing saved strategy settings, cohorts or training. No settings search was added.
+- Journal periods include Today, This Week (Monday onward), This Month and All Time, plus chronological and P/L sorting. Summaries use closed manual trades by close date in the configured timezone; skipped/open records do not inflate realized results. Market/decision filters continue to apply. No journal records or risk calculations are changed.
+
+## Sidebar and Daylight readability correction — 2026-10-23
+- Excluded sidebar navigation from general themed button surfaces, restoring flat navigation with a selected-section highlight. Existing groups, order and width preferences remain intact.
+- Settings panels now start closed each time the Settings view renders, ignoring remembered open states only on that page. Other tabs retain their existing disclosure behavior; the always-visible theme chooser stays outside disclosures.
+- Daylight now uses contrasting foregrounds and light semantic badge/active-button surfaces, including sidebar labels, form labels, confidence badges and filter controls. Paper-trading execution, selection and P/L calculations are unchanged.
+
+## Closed paper strategy ranking and option premium clarity — 2026-10-23
+- Added closed-trade sorting by strategy-set net win rate, with sample counts scoped to the selected cohort/day; combined strategies remain one group and open/unpriced outcomes do not inflate win rates.
+- Automatic paper results now open on Options. Recorded option entry/exit premiums display in dollars per share with the verified contract multiplier; stock and crypto scenarios retain explicit price labels. Historical underlying simulations are never relabeled as option fills.
+- Preserved existing risk settings and 2R target at user request. Existing option execution budgets full premium plus fees and uses underlying exit triggers; this presentation change does not introduce a guaranteed dollar stop or option-premium 2R target.
+- Added sorting, sample, no-mutation, premium display and options-default regression tests.
+
+
+## Separate automatic and manual option tabs — 2026-10-23
+- Fixed the automatic Options endpoint returning a combined option report containing manual clicks. Explicit Options views now include only automatic ledger entries; Manual Option Trades retains button-click entries, including legacy manual trades.
+- Filtered the source before computing rows, open positions, totals, history and cohorts. Combined daily report calls retain both sources. Added isolation regression checks; no trades or execution rules changed.
+
+
+## Automatic options instead of stock simulations — 2026-10-23
+- The live automatic forward caller now generates underlying simulations only for crypto. Confirmed stock setups queue a separate option-only forward fill using their frozen contract plan, the next observed eligible ask, configured slippage and contract fees. Missing, stale, ineligible or over-budget contracts never fall back to shares or estimated premiums.
+- Option trades use the existing held-contract polling and observed bid exit resolver, with separate option P&L. Full premium plus fees is the fixed risk budget; existing underlying exit triggers remain unchanged. No exact-dollar premium stop or new real order route was introduced.
+- Removed Stocks from the paper result picker; historical underlying records remain preserved. Manual and automatic option views remain separate. Added forward-fill, dedupe, contract rejection, premium P&L and caller-wiring regression tests.
+
+
+## Automatic option premium budget removal — 2026-10-23
+- Automatic option forward simulations now take one contract regardless of its premium, simulated capital or dollar risk allowance. Tagged new rows with sizingMode one-contract-no-budget; historical quantities are unchanged.
+- Kept confirmation, closed-candle/frozen setup, entry-window, regular-session, real fresh eligible quote, next-quote fill, contract identity, liquidity, cost and duplicate checks. Frozen underlying stop/target and RR remain unchanged; option dollar P&L is measured from observed premiums and is not forced to equal underlying R.
+- Added an expensive-contract regression with tiny cash/risk settings, confirming an unconfirmed setup still cannot fill.
+
+
+## News + Movers theme consistency — 2026-10-23
+- Replaced fixed dark news-card and outlook surfaces with the selected theme's panel, text and border tokens. Probability tracks now use the theme border color while preserving green/red direction indicators.
+- Added regressions for theme-token use and normal-text contrast on both news surfaces across Midnight, Ocean, Amethyst, Graphite and Daylight. News analysis and trading behavior are unchanged.
+
+
+## Restore stock-setup learning alongside option paper trades — 2026-10-23
+- Restored forward outcome collection for confirmed stock-chart setups after the option-only switch had stopped new stock training observations. New stock observations are explicitly learningOnly and excluded from paper cash/P&L views; visible automatic execution remains option contracts.
+- Reused the original frozen features, same-source subsequent closed minute bars, stop-first handling, per-market net R, configured target, cohort/overlap filters and existing retraining pipeline. Option premium P&L remains separate and is not relabeled as stock R. Missing historical live observations are not fabricated.
+- Added an end-to-end regression proving a stock learning observation resolves, enters model samples, stays out of paper totals, dedupes and rejects forming setups.
+
+
+## JARVIS 1.25 release — 2026-10-23
+- Updated visible release and health reporting to Jarvis 1.25 and package metadata to 1.25.0. Kept the browser title JARVIS and existing protocol/cohort identifiers intact.
+- Includes the pending connection resilience, live-data integrity, branding cleanup, visual themes, journal views, automatic option simulation, manual/automatic separation and restored stock-setup learning changes.

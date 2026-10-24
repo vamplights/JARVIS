@@ -1,4 +1,4 @@
-// Closed-candle continuation sequences adapted from Rishi JARVIS. These helpers
+// Closed-candle continuation sequences adapted from Jarvis JARVIS. These helpers
 // see only the supplied prefix; they never read quotes or future bars.
 const resume=(b,k,d)=>k>0&&(d>0?b[k].close>b[k-1].high:b[k].close<b[k-1].low);
 const check=(name,pass,detail)=>({name,pass,detail,weight:0});

@@ -3,7 +3,7 @@ import path from 'node:path';
 import {settingsProfile} from './stats.mjs';
 import {parts,session,barCloseTime} from './engine.mjs';
 import {writeJSON} from './public-market.mjs';
-export const VERSION='Jarvis 1.0';
+export const VERSION='Jarvis 1.25';
 export function missedTradingDays(from,to,settings){const dates=[];for(let t=Math.floor(from/86400000)*86400000;t<=to;t+=86400000){const noon=t+16*3600000,p=parts(noon,'America/New_York');const close=barCloseTime({time:Math.floor(noon/86400000)*86400},86400,'stocks',settings);if(session(noon,settings).tradingDay&&close>from&&close<=to)dates.push(p.date);}return dates;}
 export class LocalCycle {
  constructor({dir,settings,history,scanner,paper,review,resolve,now=()=>Date.now()}){Object.assign(this,{dir,settings,history,scanner,paper,review,resolve,now});this.file=path.join(dir,'local-health.json');this.cycleFile=path.join(dir,'local-cycles.json');this.startedAt=now();this.last=null;try{this.last=JSON.parse(fs.readFileSync(this.file,'utf8'));}catch{}this.data={cycles:{},coverage:{},errors:[]};try{Object.assign(this.data,JSON.parse(fs.readFileSync(this.cycleFile,'utf8')));}catch{}this.busy=false;this.tasks=new Set();const start=parts(this.startedAt,'America/New_York');if(session(this.startedAt,settings()).tradingDay)this.coverage(start.date,{missedOpen:start.minutes>565&&!this.data.coverage[start.date]?.coveredOpen,reason:start.minutes>565?'Started after 09:25 ET':'Collector started by 09:25 ET'});this.downSince=this.last?.heartbeatAt||this.startedAt;this.health();}

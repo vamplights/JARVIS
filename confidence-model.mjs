@@ -1,8 +1,8 @@
-// Rishi's model is kept verbatim in rishi-model-core.mjs. This adapter retains
+// Jarvis's model is kept verbatim in jarvis-model-core.mjs. This adapter retains
 // local settings cohorts, causal features and embargoed chronological validation.
-import {featuresOf,trainLogistic,predict} from './rishi-model-core.mjs';
+import {featuresOf,trainLogistic,predict} from './jarvis-model-core.mjs';
 import {brierScore} from './trend-model.mjs';
-export const CONFIDENCE_PROTOCOL='rishi-confidence-v2';
+export const CONFIDENCE_PROTOCOL='jarvis-confidence-v2';
 export const MIN_HISTORY=15;
 const bounded=p=>Math.max(.01,Math.min(.99,p));
 const aliases={'EMA trend alignment':'34 EMA slope','Relative volume':'Volume confirmation','Market structure':'Not choppy','Higher-timeframe trend':'HTF trend filter'};
@@ -24,7 +24,7 @@ const band=score=>[90,80,70,60,0].find(b=>score>=b);
 function historyInfo(past,s){
  const exact=past.filter(r=>r.strategy===s.strategy&&(r.variant||'direct')===(s.variant||'direct')&&r.tf===s.tf),bucket=exact.filter(r=>band(r.score)===band(s.score??s.features?.score)),chosen=bucket.length>=MIN_HISTORY?bucket:exact,
   measured=chosen.filter(r=>Number.isFinite(r.realizedR)),historicalAvgR=measured.length===chosen.length&&measured.length?measured.reduce((n,r)=>n+r.realizedR,0)/measured.length:null;
- // Rishi's daily review mutes setups whose optimistic 90% win-rate bound is
+ // Jarvis's daily review mutes setups whose optimistic 90% win-rate bound is
  // below break-even after at least 40 weighted outcomes. Only past labels count.
  const setup=past.filter(r=>r.strategy===s.strategy&&(r.variant||'direct')===(s.variant||'direct'));
  let n=0,w=0;for(const r of setup){const weight=r.source==='historical replay'?1:2;n+=weight;w+=weight*r.y;}

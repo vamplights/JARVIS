@@ -13,7 +13,7 @@ export async function readRPC(response,id){
 }
 // Credentials never reach the dashboard. Optional storage uses Windows account encryption.
 export class RobinhoodClient {
- constructor({origin,fetcher=fetch,store=null}={}){this.store=store;this.storageError=null;this.remembered=false;this.origin=origin;this.fetcher=fetcher;this.tokens=null;this.clientId=null;this.pending=null;this.sessionId=null;this.protocol='2025-06-18';this.seq=0;this.generation=0;this.refreshing=null;}
+ constructor({origin,fetcher=fetch,store=null,retryDelayMs=500,requestTimeoutMs=25000}={}){this.retryDelayMs=retryDelayMs;this.requestTimeoutMs=requestTimeoutMs;this.initializing=null;this.marketQueue=[];this.marketRunning=0;this.backgroundRunning=0;this.store=store;this.storageError=null;this.remembered=false;this.origin=origin;this.fetcher=fetcher;this.tokens=null;this.clientId=null;this.pending=null;this.sessionId=null;this.protocol='2025-06-18';this.seq=0;this.generation=0;this.refreshing=null;}
  restore(){
   if(!this.store)return false;
   try{const saved=this.store.load();if(!saved)return false;
@@ -24,7 +24,8 @@ export class RobinhoodClient {
  saveAuthorization(){if(!this.store)return;try{this.store.save({version:1,origin:this.origin,clientId:this.clientId,tokens:this.tokens});this.remembered=true;this.storageError=null;}catch{this.remembered=false;this.storageError='Connection works for this session, but encrypted authorization could not be saved.';}}
  forgetAuthorization(){this.tokens=null;this.remembered=false;if(this.store){try{this.store.clear();this.storageError=null;}catch{this.storageError='Saved authorization could not be deleted. Remove the local encrypted authorization file before restarting.';throw Error(this.storageError);}}}
  get connected(){return !!this.tokens;}
- async request(url,options={}){return this.fetcher(url,{...options,redirect:'error',signal:AbortSignal.timeout(25000)});}
+ async request(url,options={}){try{return await this.fetcher(url,{...options,redirect:'error',signal:AbortSignal.timeout(this.requestTimeoutMs)});}catch(e){throw this.connectionError(e);}}
+ connectionError(e){if(['TimeoutError','AbortError'].includes(e?.name))return new RobinhoodError('Robinhood request timed out. Temporary market-data failures retry automatically; your saved sign-in is retained.',408);if(e instanceof TypeError)return new RobinhoodError('Robinhood could not be reached. Automatic market-data refresh will retry.',503);return e;}
  async begin(){
   const metadata=await this.request('https://agent.robinhood.com/.well-known/oauth-authorization-server');if(!metadata.ok)throw new Error('Robinhood sign-in discovery unavailable');const m=await metadata.json();
   if(m.issuer!==RESOURCE||m.authorization_endpoint!=='https://robinhood.com/oauth'||m.token_endpoint!=='https://api.robinhood.com/oauth2/token/'||m.registration_endpoint!=='https://agent.robinhood.com/oauth/trading/register'||!m.code_challenge_methods_supported?.includes('S256'))throw new Error('Robinhood sign-in metadata changed; connection needs review');
@@ -50,15 +51,45 @@ export class RobinhoodClient {
  async rpc(method,params,notify=false){
   await this.ensureToken();const id=++this.seq;
   const r=await this.request(RESOURCE,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream',Authorization:`Bearer ${this.tokens.access}`,'MCP-Protocol-Version':this.protocol,...(this.sessionId?{'Mcp-Session-Id':this.sessionId}:{})},body:JSON.stringify({jsonrpc:'2.0',...(notify?{}:{id}),method,params})});
-  if(!r.ok){if(r.status===401)this.forgetAuthorization();if(r.status===404)this.sessionId=null;const retry=r.headers.get('retry-after'),retryMs=retry?(Number.isFinite(Number(retry))?Number(retry)*1000:Date.parse(retry)-Date.now()):0;throw new RobinhoodError(r.status===429?'Robinhood rate limit; automatic refresh will back off':r.status===401?'Robinhood sign-in expired':`Robinhood request failed (${r.status})`,r.status,Math.max(0,retryMs||0));}
+  if(!r.ok){if(r.status===404)this.sessionId=null;const retry=r.headers.get('retry-after'),retryMs=retry?(Number.isFinite(Number(retry))?Number(retry)*1000:Date.parse(retry)-Date.now()):0;throw new RobinhoodError(r.status===429?'Robinhood rate limit; automatic refresh will back off':r.status===401?'Robinhood sign-in expired':`Robinhood request failed (${r.status})`,r.status,Math.max(0,retryMs||0));}
   if(r.headers.get('mcp-session-id'))this.sessionId=r.headers.get('mcp-session-id');if(notify||r.status===202){await r.body?.cancel();return;}
-  const message=await readRPC(r,id);if(message.id!==id)throw new Error('Unexpected Robinhood response');if(message.error)throw new Error('Robinhood could not complete the market-data request');return message.result;
+  let message;try{message=await readRPC(r,id);}catch(e){throw this.connectionError(e);}if(message.id!==id)throw new Error('Unexpected Robinhood response');if(message.error)throw new Error('Robinhood could not complete the market-data request');return message.result;
  }
- async initialize(){const info=await this.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'JARVIS local market data',version:'1.1.0'}});this.protocol=info.protocolVersion;await this.rpc('notifications/initialized',{},true);this.initialized=true;}
+ async initialize(){
+  if(this.initializing)return this.initializing;
+  const generation=this.generation,job=(async()=>{const info=await this.rpc('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'JARVIS local market data',version:'1.1.0'}});if(generation!==this.generation)throw Error('Connection was disconnected');this.protocol=info.protocolVersion;await this.rpc('notifications/initialized',{},true);if(generation!==this.generation)throw Error('Connection was disconnected');this.initialized=true;})();
+  this.initializing=job;try{return await job;}finally{if(this.initializing===job)this.initializing=null;}
+ }
+ pumpMarketQueue(){
+  this.marketQueue.sort((a,b)=>a.priority-b.priority);
+  while(this.marketRunning<3){const index=this.marketQueue.findIndex(j=>j.priority===0||this.backgroundRunning<2);if(index<0)return;const job=this.marketQueue.splice(index,1)[0];this.marketRunning++;if(job.priority!==0)this.backgroundRunning++;
+   Promise.resolve().then(job.run).then(job.resolve,job.reject).finally(()=>{this.marketRunning--;if(job.priority!==0)this.backgroundRunning--;this.pumpMarketQueue();});
+  }
+ }
  async call(name,args){
   if(!MARKET_TOOLS.has(name))throw new Error('Only approved market-data reads are allowed');
-  if(!this.initialized)await this.initialize();let r;try{r=await this.rpc('tools/call',{name,arguments:args});}catch(e){if(e.status===404){this.initialized=false;await this.initialize();r=await this.rpc('tools/call',{name,arguments:args});}else throw e;}
-  if(r?.isError)throw new Error(`Robinhood ${name} data unavailable`);const payload=r?.structuredContent||JSON.parse(r?.content?.find(c=>c.type==='text')?.text||'{}');if(!payload.data)throw new Error(`Robinhood ${name} returned no usable data`);return payload.data;
+  const generation=this.generation,priority=name==='get_equity_quotes'?0:name==='get_equity_historicals'?1:name==='get_option_quotes'?2:3;
+  return new Promise((resolve,reject)=>{this.marketQueue.push({priority,resolve,reject,run:()=>this.marketRead(name,args,generation)});this.pumpMarketQueue();});
  }
- disconnect(){this.generation++;this.pending=null;this.sessionId=null;this.initialized=false;this.forgetAuthorization();}
+ async marketRead(name,args,generation){
+  let renewed=false;
+  for(let attempt=0;;attempt++){
+   if(generation!==this.generation)throw Error('Connection was disconnected');
+   try{
+    if(!this.initialized)await this.initialize();
+    const r=await this.rpc('tools/call',{name,arguments:args});
+    if(generation!==this.generation)throw Error('Connection was disconnected');
+    if(r?.isError)throw new Error(`Robinhood ${name} data unavailable`);const payload=r?.structuredContent||JSON.parse(r?.content?.find(c=>c.type==='text')?.text||'{}');if(!payload.data)throw new Error(`Robinhood ${name} returned no usable data`);return payload.data;
+   }catch(error){const e=this.connectionError(error);
+    if(generation!==this.generation)throw Error('Connection was disconnected');
+    if(e.status===401&&!renewed&&this.tokens?.refresh){renewed=true;this.tokens.expires=0;await this.ensureToken();continue;}
+    if(e.status===401){this.forgetAuthorization();throw e;}
+    if(e.status===404&&attempt<1){this.initialized=false;continue;}
+    if([408,502,503,504].includes(e.status)&&attempt<1){await new Promise(r=>setTimeout(r,this.retryDelayMs));continue;}
+    throw e;
+   }
+  }
+ }
+
+ disconnect(){this.generation++;for(const job of this.marketQueue.splice(0))job.reject(Error('Connection was disconnected'));this.initializing=null;this.pending=null;this.sessionId=null;this.initialized=false;this.forgetAuthorization();}
 }

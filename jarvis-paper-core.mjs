@@ -1,5 +1,5 @@
-// Ported from Rishi JARVIS web/paper.js; algorithm body retained. Dependencies are supplied by the local adapter.
-export function createRishiPaper({newsFeatures,S,A,featuresOf,predict,cryptoSize,marketSession}){
+// Ported from Jarvis JARVIS web/paper.js; algorithm body retained. Dependencies are supplied by the local adapter.
+export function createJarvisPaper({newsFeatures,S,A,featuresOf,predict,cryptoSize,marketSession}){
 // Live forward test ("paper trades"): every CONFIRMED signal is recorded automatically and then
 // resolved from real 1-minute candles exactly like the backtest (next-bar-open fill, stop checked
 // before target, time exit, costs). No orders are ever sent. Results feed the confidence model.

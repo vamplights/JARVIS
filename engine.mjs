@@ -6,7 +6,7 @@ import {combineSignals} from './confluence.mjs';
 import {strategyParams} from './strategy-controls.mjs';
 // Pure research/risk functions. No brokerage or order interfaces exist in this app.
 export const DEFAULTS = {
-  strictContinuations:true,showInactiveSignals:false,publicOptionResearch:true,qualificationMode:'strict',allowOneMinute:false,callWindowBars:2,stockStaleSeconds:150,minWatchScore:45,studyMode:false,sourcePreference:'yahoo',topPicks:{minScore:80,minProbability:.35,minExpectedR:0},
+  liveSignalsOnly:true,strictContinuations:true,showInactiveSignals:false,publicOptionResearch:true,qualificationMode:'strict',allowOneMinute:false,callWindowBars:2,stockStaleSeconds:150,minWatchScore:45,studyMode:false,sourcePreference:'yahoo',topPicks:{minScore:80,minProbability:.35,minExpectedR:0},
   capital:1500, risk:15, riskPercent:1, eventWindowMinutes:60, maxVix:30, optionMinOI:100, optionMinVolume:20, optionMaxSpread:10, maxTrades:3, maxLosses:2, timezone:'America/Los_Angeles', reset:'00:00', stockCutoff:'13:00', cryptoAfterHours:false,
   stocks:["SPY","QQQ","AAPL","NVDA","MSFT","TSLA","AMD","COIN","INTC","SMCI","CEG","CRWD","PANW","ORCL","MU","LRCX","VST","AMAT","ADBE","CRM","META","AVGO","AMZN"], crypto:['BTC-USD','ETH-USD'], stockFrames:[3,5,15], cryptoFrame:60, cryptoFrames:[60,1440], betaVersion:1,
   strategyMarketFrames:{},includeFallbackTraining:false,alertMinEV:.15,alertMinProb:.75,maxStrategyDrawdownR:15,maxSpreadOfRisk:.25,eventBlocks:{CPI:{mode:"window",minutes:60},FOMC:{mode:"day",minutes:60},earningsDays:1,firstFiveMinutes:true},
