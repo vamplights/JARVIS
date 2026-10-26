@@ -6,10 +6,12 @@ Local market research, signal cards, Top Picks and paper trading. No real order 
 
 1. Install Node.js 22 or newer and Git.
 2. Clone this **private repository** into a normal local folder on that computer.
-3. Run **Start JARVIS.cmd** on Windows, or run `npm start` in the project folder.
+3. Run **Start JARVIS.cmd** on Windows or double-click **Start JARVIS.command** on macOS. You can also run `npm start` in the project folder.
 4. Connect your own Robinhood session in System Status. Authorization stays on that computer.
 
 No npm packages are required. First start copies the clean configuration from `config/settings.shared.json` into `data/journal-settings.json` with an empty journal. It never overwrites an existing journal or settings file. Stock/crypto data and models build locally; internet is needed for market feeds. If you start with `node server.mjs` directly, run `node scripts/init-settings.mjs` first to seed the included configuration.
+
+On macOS, the launcher opens the dashboard in your browser. Keep its Terminal window open while using JARVIS; press Control-C to stop it. If macOS reports a permission error, run `chmod +x "Start JARVIS.command"` in the project folder once. Node.js 22 or newer must be installed. Robinhood sign-in stays in memory on Mac, so reconnect after restarting JARVIS.
 
 ## Move work between laptop and PC
 
