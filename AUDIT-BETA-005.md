@@ -490,3 +490,7 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 - Added a local learning-settings registry for future compatibility proofs, reused existing frozen forward-settings/signal snapshots, and exposed eligible/reused sample counts in model status. No estimated option P&L enters underlying training.
 - The existing minute cycle now checks for changed completed automatic or verified manual outcomes and retrains when needed, instead of waiting only for startup/daily review/manual revisions. Unchanged or merely pending records do not retrain. Frozen predictions stay frozen; old signals cannot use a model trained on their future.
 - Added tests for compatible-universe reuse, real-rule/cost/exit separation, unverifiable groups, causal/overlap filters, weight reuse, persistence and completion-triggered refresh.
+
+## Confirmed signals first — 2026-10-26
+- Signal Radar automatically prioritizes confirmed signals before other visible statuses for stocks/options, crypto and overview. Expiry, confidence, newest, risk and reward sorts still apply within each priority group. Existing visibility filters and symbol grouping remain unchanged; grouped cards expose their confirmed plan first.
+- Added regression coverage for secondary sorts, conflicted/stale rows, retention of all filtered statuses and grouped plans. This is display ordering only and does not change confirmation or learning rules.

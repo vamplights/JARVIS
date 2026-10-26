@@ -19,6 +19,10 @@ export function matchesStatus(signal,filter,context){
  return label===filter;
 }
 const statusOrder=['CONFIRMED','SETUP FORMING','WATCH','BLOCKED BY RISK RULE','QUOTE DELAYED','QUOTE UNAVAILABLE','QUOTE TIME MISMATCH','LIVE DATA UNAVAILABLE','SERVER OFFLINE','SETUP EXPIRED','INVALIDATED'];
+// Confirmed cards stay first regardless of the selected secondary sort.
+export function compareConfirmedFirst(a,b,context,secondary=()=>0){
+ return Number(displayStatus(b,context)==='CONFIRMED')-Number(displayStatus(a,context)==='CONFIRMED')||secondary(a,b);
+}
 export function compareStatus(a,b,context){const rank=s=>{const i=statusOrder.indexOf(displayStatus(s,context));return i<0?statusOrder.length:i;};return rank(a)-rank(b)||(b.confirmedAt||0)-(a.confirmedAt||0)||String(a.id).localeCompare(String(b.id));}
 
 export function radarVisible(signal,settings={},context={}){if(settings.showInactiveSignals)return true;if(context.offline||signal.legacyProfile||signal.inspectionOnly||signal.conflicted)return false;return ['CONFIRMED','SETUP FORMING','WATCH'].includes(displayStatus(signal,context))&&(context.now??Date.now())<entryExpiresAt(signal);}
