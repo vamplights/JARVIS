@@ -464,3 +464,29 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 ## JARVIS 1.25 release — 2026-10-23
 - Updated visible release and health reporting to Jarvis 1.25 and package metadata to 1.25.0. Kept the browser title JARVIS and existing protocol/cohort identifiers intact.
 - Includes the pending connection resilience, live-data integrity, branding cleanup, visual themes, journal views, automatic option simulation, manual/automatic separation and restored stock-setup learning changes.
+
+## Focused stock signal universe — 2026-10-26
+- Updated stock presets to QQQ, SPY, SPX, TSLA, AAPL, AMD, AVGO, AMZN, GOOGL, MSFT and NVDA. Existing crypto selections and trade history remain untouched.
+- Added an editable signalsWatchlistOnly setting. Signals and signal-producing in-play candidates are limited to that stock watchlist. News + Movers retains its broad constituent universe and research cards; outside-watchlist ideas never become stock signals while this setting is enabled.
+- Added stock-list, crypto preservation, validation, broad-scanner and filtered in-play candidate regression coverage. Historical records are preserved.
+
+## Trade journal win rate — 2026-10-26
+- Replaced the Open records summary tile with Trade win rate for Today, This week, This month and All time. Uses profitable closed trades divided by all measured closed trades in the current journal filters; break-even counts as non-winning, and open/skipped/unpriced entries are excluded. Empty periods show a dash.
+- Added regression coverage for every period, zero wins, break-even and empty results.
+
+## SPX Robinhood index-data integration — 2026-10-26
+- Added read-only index discovery, timestamped index quotes and session-sized one-minute index history requests for SPX. Equity requests exclude SPX. Verified the official tool schemas and actual SPX quote/history response fields using the existing encrypted local sign-in. Intraday requests are split by verified regular sessions and do not span weekends.
+- Index OHLC values normalize into the existing closed-candle pipeline. Interpolated bars are excluded; current candles remain incomplete. Index assets explicitly declare unavailable volume, and index quotes never invent executable bid/ask prices. Existing stock quote parsing is preserved.
+- Limited SPX to price-only EMA cross/retest strategies. Volume/spread checklist items are labeled unavailable and carry zero score weight; no stock share affordability gate is used for index analysis. VWAP, volume breakout and special volume-dependent strategies are excluded. Option plans and paper fills retain separate real contract quotes, liquidity and cost checks. Missing RVOL remains null and cannot silently enter the existing volume-feature training model as a fabricated value.
+- Added explicit licensing restrictions with no repeated restricted requests, per-index quote errors, independent equity polling, and skipped stock-only fundamentals/earnings calls for SPX. Added browser module routing, pipeline/parsing, freshness, incomplete/interpolated data, request splitting, restrictions and price-only strategy regression tests.
+
+## Remove SPX from the active watchlist — 2026-10-26
+- Removed SPX from the local active stock watchlist and shared/default stock presets at the user's request. Other stock symbols, all crypto settings and historical trade records remain unchanged. Broad News + Movers research is unchanged; existing index adapter code is retained but no longer polled by the stock watchlist.
+- Updated the stock-universe regression fixture to the remaining ten symbols.
+
+## Learning continuity across watchlist changes — 2026-10-26
+- Separated learning compatibility from the paper/report cohort identifier. Watchlist membership and watchlist-only signal scope no longer invalidate a compatible model; all strategy, timeframe, cost, gate, sizing and exit settings still have to match. Canonical key ordering avoids accidental mismatches from JSON order.
+- Reuse requires a saved settings snapshot whose original profile hash verifies. Original trade/replay profiles, frozen features, prices, predictions and report history are not rewritten. Unknown or incompatible groups remain excluded. Existing causal, closed-outcome, non-overlap, replay holdout, fallback, capped-target and verified-manual checks remain active.
+- Added a local learning-settings registry for future compatibility proofs, reused existing frozen forward-settings/signal snapshots, and exposed eligible/reused sample counts in model status. No estimated option P&L enters underlying training.
+- The existing minute cycle now checks for changed completed automatic or verified manual outcomes and retrains when needed, instead of waiting only for startup/daily review/manual revisions. Unchanged or merely pending records do not retrain. Frozen predictions stay frozen; old signals cannot use a model trained on their future.
+- Added tests for compatible-universe reuse, real-rule/cost/exit separation, unverifiable groups, causal/overlap filters, weight reuse, persistence and completion-triggered refresh.

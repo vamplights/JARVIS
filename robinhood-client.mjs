@@ -1,7 +1,7 @@
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 
 const RESOURCE='https://agent.robinhood.com/mcp/trading';
-export const MARKET_TOOLS=new Set(['get_equity_quotes','get_equity_historicals','get_option_chains','get_option_instruments','get_option_quotes','get_equity_fundamentals','get_earnings_results','get_indexes','get_index_quotes']);
+export const MARKET_TOOLS=new Set(['get_equity_quotes','get_equity_historicals','get_option_chains','get_option_instruments','get_option_quotes','get_equity_fundamentals','get_earnings_results','get_indexes','get_index_quotes','get_index_historicals']);
 export class RobinhoodError extends Error {constructor(message,status=0,retryMs=0){super(message);this.status=status;this.retryMs=retryMs;}}
 export async function readRPC(response,id){
  if(response.headers.get('content-type')?.includes('text/event-stream')){
@@ -68,7 +68,7 @@ export class RobinhoodClient {
  }
  async call(name,args){
   if(!MARKET_TOOLS.has(name))throw new Error('Only approved market-data reads are allowed');
-  const generation=this.generation,priority=name==='get_equity_quotes'?0:name==='get_equity_historicals'?1:name==='get_option_quotes'?2:3;
+  const generation=this.generation,priority=['get_equity_quotes','get_index_quotes'].includes(name)?0:['get_equity_historicals','get_index_historicals'].includes(name)?1:name==='get_option_quotes'?2:3;
   return new Promise((resolve,reject)=>{this.marketQueue.push({priority,resolve,reject,run:()=>this.marketRead(name,args,generation)});this.pumpMarketQueue();});
  }
  async marketRead(name,args,generation){

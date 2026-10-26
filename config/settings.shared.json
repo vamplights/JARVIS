@@ -29,33 +29,16 @@
   "stockCutoff": "13:00",
   "cryptoAfterHours": false,
   "stocks": [
-    "SPY",
     "QQQ",
-    "AAPL",
-    "NVDA",
-    "MSFT",
+    "SPY",
     "TSLA",
+    "AAPL",
     "AMD",
-    "COIN",
-    "INTC",
-    "SMCI",
-    "CEG",
-    "CRWD",
-    "PANW",
-    "ORCL",
-    "MU",
-    "LRCX",
-    "VST",
-    "AMAT",
-    "ADBE",
-    "CRM",
-    "META",
     "AVGO",
     "AMZN",
     "GOOGL",
-    "NFLX",
-    "PLTR",
-    "UBER"
+    "MSFT",
+    "NVDA"
   ],
   "crypto": [
     "BTC-USD",
@@ -758,5 +741,6 @@
   "earlyCloses": {},
   "experienceVersion": 1,
   "sidebarSubtitle": "",
-  "liveSignalsOnly": true
+  "liveSignalsOnly": true,
+  "signalsWatchlistOnly": true
 }

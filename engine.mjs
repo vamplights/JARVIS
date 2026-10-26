@@ -1,3 +1,4 @@
+import {isIndexSymbol} from './index-data.mjs';
 import {continuationParams,emaContinuation,vwapContinuation,levelContinuation} from './continuations.mjs';
 import {patternQualification,entryExpiresAt,staleFor} from './signal-policy.mjs';
 import {specialSignals} from './beta-strategies.mjs';
@@ -8,7 +9,7 @@ import {strategyParams} from './strategy-controls.mjs';
 export const DEFAULTS = {
   liveSignalsOnly:true,strictContinuations:true,showInactiveSignals:false,publicOptionResearch:true,qualificationMode:'strict',allowOneMinute:false,callWindowBars:2,stockStaleSeconds:150,minWatchScore:45,studyMode:false,sourcePreference:'yahoo',topPicks:{minScore:80,minProbability:.35,minExpectedR:0},
   capital:1500, risk:15, riskPercent:1, eventWindowMinutes:60, maxVix:30, optionMinOI:100, optionMinVolume:20, optionMaxSpread:10, maxTrades:3, maxLosses:2, timezone:'America/Los_Angeles', reset:'00:00', stockCutoff:'13:00', cryptoAfterHours:false,
-  stocks:["SPY","QQQ","AAPL","NVDA","MSFT","TSLA","AMD","COIN","INTC","SMCI","CEG","CRWD","PANW","ORCL","MU","LRCX","VST","AMAT","ADBE","CRM","META","AVGO","AMZN"], crypto:['BTC-USD','ETH-USD'], stockFrames:[3,5,15], cryptoFrame:60, cryptoFrames:[60,1440], betaVersion:1,
+  signalsWatchlistOnly:true,stocks:["QQQ","SPY","TSLA","AAPL","AMD","AVGO","AMZN","GOOGL","MSFT","NVDA"], crypto:['BTC-USD','ETH-USD'], stockFrames:[3,5,15], cryptoFrame:60, cryptoFrames:[60,1440], betaVersion:1,
   strategyMarketFrames:{},includeFallbackTraining:false,alertMinEV:.15,alertMinProb:.75,maxStrategyDrawdownR:15,maxSpreadOfRisk:.25,eventBlocks:{CPI:{mode:"window",minutes:60},FOMC:{mode:"day",minutes:60},earningsDays:1,firstFiveMinutes:true},
   strategyParams:{}, alerts:{enabled:true,threshold:75,sound:false,flash:true,volume:.2,cooldownSeconds:300,allowCandidate:false,soundChoice:'chime',quietHours:[],maxPerHour:6,desktop:false}, dailyReview:{enabled:true,hourET:17,historyDays:28,months:6},
   strategyFrames:{'ema-cross':[3,5],'ema-retest':[3,5],vwap:[3,5],momentum:[],'momentum-retest':[3,5],orb5:[3,5],'orb5-retest':[3,5],orb15:[3,5],'orb15-retest':[3,5]},
@@ -130,7 +131,7 @@ export function vwap(bars,market='crypto',interval=null){
 export function positionSize(entry,stop,market,s=DEFAULTS,quote=null){const distance=Math.abs(entry-stop),c=marketCosts(s,market,quote),cost=roundTripCost(entry,stop,market,s,quote);let size=distance>0?Math.min(Math.min(s.risk,s.capital*(s.riskPercent??100)/100)/(distance+cost),s.capital/(entry*(1+c.feeBps/10000))):0;size=market==='stocks'?Math.floor(size):Math.floor(size*1e8)/1e8;return {size,plannedRisk:size*(distance+cost),notional:size*entry,priceRisk:size*distance,costEstimate:size*cost};}
 export function indicators(bars,market,interval=null){return {ema:ema(bars.map(b=>b.close)),atr:atr(bars),adx:adx(bars),vwap:vwap(bars,market,interval)};}
 export function evaluate(input){
- const s=input.settings||DEFAULTS,tf=input.tf??5,groups=new Map(),sources=input.prepared?.sources||[...new Set((input.bars||[]).map(b=>b.source).filter(Boolean))];
+ const originalSettings=input.settings||DEFAULTS,s=isIndexSymbol(input.symbol)?{...originalSettings,strategies:originalSettings.strategies.filter(id=>['ema-cross','ema-retest'].includes(id))}:originalSettings,tf=input.tf??5,groups=new Map(),sources=input.prepared?.sources||[...new Set((input.bars||[]).map(b=>b.source).filter(Boolean))];
  if(sources.length>1)throw Error("Mixed candle sources: rebuild the indicator series from one provider");
  const source=input.source||sources[0]||"Unspecified historical source",fallback=!!input.fallback||(input.prepared?input.prepared.fallback:(input.bars||[]).some(b=>b.fallback===true));
  for(const id of s.strategies){if(!strategyEnabled(id,tf,s,input.market))continue;const params=strategyParams(s,id),key=JSON.stringify(params);if(!groups.has(key))groups.set(key,{params,ids:[]});groups.get(key).ids.push(id);}
@@ -141,7 +142,7 @@ export function evaluate(input){
  return {signals:combineSignals(results.flatMap(r=>r.signals).map(r=>({...r,source,fallback,featureTime:r.confirmedAt}))),analysis:results[0].analysis};
 }
 function evaluateCore({symbol,market,bars,base=60,tf=5,settings:s=DEFAULTS,now=Date.now(),quote=null,marketTrend=null,replay=false,params,prepared=null}){
- const preparedView=prepared?.view(now,params.emaPeriod);const all=preparedView?preparedView.b:aggregate(bars,tf,base,now);let b=all.filter(x=>x.complete);
+ const indexData=isIndexSymbol(symbol);const preparedView=prepared?.view(now,params.emaPeriod);const all=preparedView?preparedView.b:aggregate(bars,tf,base,now);let b=all.filter(x=>x.complete);
  // Never bridge a missing candle when confirming an entry.
  let cut=0;for(let i=1;i<b.length;i++)if(b[i].time-b[i-1].time!==tf*60)cut=i;
  // Overnight equity gaps are allowed for EMA, but intra-session gaps reset warmup.
@@ -195,41 +196,41 @@ function evaluateCore({symbol,market,bars,base=60,tf=5,settings:s=DEFAULTS,now=D
   let factors=[
    {name:'EMA trend alignment',pass:trend===x.dir,weight:15,detail:`EMA slope over ${params.trendLookback} closed bars`},
    {name:'Candle confirmation',pass:x.confirmed,weight:25,detail:x.reason},
-   {name:'Relative volume',pass:rvol>=(params.minRVOL??s.minRVOL),weight:15,detail:`${rvol.toFixed(2)}× versus previous ${params.volumeLookback} bars`},
+   {name:'Relative volume',pass:!indexData&&rvol>=(params.minRVOL??s.minRVOL),weight:indexData?0:15,available:!indexData,detail:indexData?'Not applicable: index levels have no traded volume':`${rvol.toFixed(2)}× versus previous ${params.volumeLookback} bars`},
    {name:'Market structure',pass:regime!=='Choppy',weight:15,detail:`${regime}; efficiency ${efficiency.toFixed(2)}`},
    {name:'Entry / invalidation',pass:extension<=s.maxExtension&&(floor.widened||distance<=s.maxStopATR*a)&&rr>=s.minRR,weight:20,detail:`${extension.toFixed(2)} ATR from EMA; ${rr.toFixed(2)}R before nearby structure`},
-   {name:'Spread verified',pass:spread!=null&&spread<=s.maxSpreadBps,weight:10,detail:spread==null?'Bid/ask unavailable':`${spread.toFixed(2)} bps`}
+   {name:'Spread verified',pass:spread!=null&&spread<=s.maxSpreadBps,weight:indexData?0:10,available:!indexData,detail:indexData?'Index level has no executable spread; option bid/ask checked separately':spread==null?'Bid/ask unavailable':`${spread.toFixed(2)} bps`}
   ];
   if(s.qualificationMode==='balanced')factors=[
-   {...factors[0],weight:15},{...factors[1],weight:30},{...factors[2],weight:5},{...factors[3],weight:10},
+   {...factors[0],weight:15},{...factors[1],weight:30},{...factors[2],weight:indexData?0:5},{...factors[3],weight:10},
    {name:'Not chasing',pass:extension<=s.maxExtension,weight:15,detail:`${extension.toFixed(2)} ATR from EMA`},
    {name:'Stop distance sensible',pass:floor.widened||distance<=s.maxStopATR*a,weight:10,detail:`${floor.stopATR.toFixed(2)} ATR stop including noise/cost floor`},
    {name:'Room to next level',pass:rr>=s.minRR,weight:10,detail:`${rr.toFixed(2)}R before nearby structure; fixed scenarios are also shown`},
-   {...factors[5],weight:5}];
+   {...factors[5],weight:indexData?0:5}];
   const failures=[];for(const f of x.checks||[]){factors.push(f);if(!f.pass&&f.name!=='Later high/low resumption')failures.push('Continuation requirement: '+f.name);}
   if(market==='stocks'&&x.strategy==='momentum'&&params.minDayMovePct>0){const date=parts(c.time*1000,'America/New_York').date,first=b.findIndex(z=>parts(z.time*1000,'America/New_York').date===date),ref=first>0?b[first-1].close:b[first].open,move=x.dir*(c.close/ref-1)*100;factors.push({name:'Strong day move',pass:move>=params.minDayMovePct,weight:10,detail:move.toFixed(2)+'% in setup direction'});if(move<params.minDayMovePct)failures.push('Day move below momentum threshold');}
-  if(s.filters.confirmation&&(trend!==x.dir||(c.close-p.close)*x.dir<=0||rvol<(params.minRVOL??s.minRVOL)))failures.push('Trend, momentum and volume must all agree');
+  if(s.filters.confirmation&&(trend!==x.dir||(c.close-p.close)*x.dir<=0||!indexData&&rvol<(params.minRVOL??s.minRVOL)))failures.push('Trend, momentum and volume must all agree');
   if((params.requireHigherTF??s.filters.trend)&&higherTrend!==x.dir)failures.push(higherTrend==null?'Higher-timeframe EMA needs more history':'Higher-timeframe trend disagrees');
-  if(s.filters.volume&&rvol<(params.minRVOL??s.minRVOL))failures.push('Weak relative volume');
+  if(!indexData&&s.filters.volume&&rvol<(params.minRVOL??s.minRVOL))failures.push('Weak relative volume');
   if(s.filters.chop&&regime==='Choppy')failures.push('Choppy market');
   if(s.filters.vwap&&(v==null||(c.close-v)*x.dir<=0))failures.push('VWAP confirmation unavailable or disagrees');
   if(s.filters.market&&market==='stocks'&&marketTrend!==x.dir)failures.push('Broad-market direction unavailable or disagrees');
-  if(s.filters.spread&&(spread==null||spread>s.maxSpreadBps))failures.push('Spread unavailable or too wide');
+  if(!indexData&&s.filters.spread&&(spread==null||spread>s.maxSpreadBps))failures.push('Spread unavailable or too wide');
   if(extension>s.maxExtension)failures.push('Entry extended from EMA');if(!floor.widened&&distance>s.maxStopATR*a)failures.push('Stop too far away');if(rr<s.minRR)failures.push('Nearby structure limits reward/risk');
   const family=x.strategy.replace(/-retest$/,'').replace('ema-cross','ema');
   const setupKey=`${symbol}:${tf}:${family}:${x.dir}:${family.startsWith('orb')?parts(x.anchor*1000,'America/New_York').date:x.anchor}`;
   const score=Math.round(100*factors.reduce((n,f)=>n+(f.pass?f.weight:0),0)/factors.reduce((n,f)=>n+f.weight,0));if(score<s.minScore)failures.push('Score below threshold');
   const costQuote=quote&&quote.time<=now+5000&&now-quote.time<=s.staleSeconds*1000?quote:null;
-  const size=positionSize(c.close,stop,market,s,costQuote);if(size.size<=0)failures.push('No affordable size within risk budget');
+  const underlyingSize=positionSize(c.close,stop,market,s,costQuote),size=indexData?{size:null,plannedRisk:s.risk,notional:null,priceRisk:null,costEstimate:null,analysisOnly:true}:underlyingSize;if(!indexData&&size.size<=0)failures.push('No affordable size within risk budget');
   const reward=rewardMetrics(c.close,stop,c.close+x.dir*distance*rr,market,s,costQuote),{netRR}=reward;if(netRR<s.minRR)failures.push('Estimated costs reduce net target R below minimum');
   const qualification=patternQualification({confirmed:x.confirmed,failures,settings:s,params,strategy:x.strategy});let status=qualification.status;
   const stale=now/1000-(c.time+tf*60)>tf*60+15;
   if(stale)status='STALE';
-  const warnings=[...failures];if(market==='crypto')warnings.push('Spot-candle setup. Coinbase derivatives allocation is a separate planning scenario; bearish spot setups remain exit/avoid analysis.');else warnings.push('Underlying stock analysis. Inspect the separate options panel for verified contract data; stock signals do not select option contracts.');
+  const warnings=[...failures];if(indexData)warnings.push('Index price-only EMA setup: no index volume, VWAP or executable underlying spread. Option quotes and option P&L are separate.');if(market==='crypto')warnings.push('Spot-candle setup. Coinbase derivatives allocation is a separate planning scenario; bearish spot setups remain exit/avoid analysis.');else warnings.push('Underlying stock analysis. Inspect the separate options panel for verified contract data; stock signals do not select option contracts.');
   if(market==='crypto'&&x.dir<0){warnings.push('No verified shortable product');if(status==='CONFIRMED'&&s.qualificationMode!=='balanced')status='WATCH';}
-  return {id:`${setupKey}:${x.strategy}`,setupKey,symbol,market,tf,strategy:x.strategy,name:RULES[x.strategy].name.replace('34',String(params.emaPeriod)),...qualification,qualificationMode:s.qualificationMode||'strict',callWindowBars:s.callWindowBars??2,direction:x.dir>0?'bullish':'bearish',dir:x.dir,time:c.time*1000,confirmedAt:c.closeTime??(c.time+tf*60)*1000,price:c.close,entry,stop,target:c.close+x.dir*distance*rr,stopReason:floor.widened?'Swing stop widened to the ATR / basis-point noise floor':`Recent 5-bar swing plus ${params.stopBufferATR} ATR buffer`,invalidation:`${x.dir>0?'Below':'Above'} frozen stop invalidates; price moving outside the entry tolerance returns the setup to WATCH.`,exits:[{name:'1.5R scenario',price:c.close+x.dir*distance*1.5,rr:1.5},{name:'2R scenario',price:c.close+x.dir*distance*2,rr:2},...(structural?[{name:'Nearby structure',price:structural,rr}]:[])],exitNote:'Earlier exits reduce give-back but cap upside; trailing behind swings can capture trends but gives back open profit.',rr,netRR,costsAsRiskPct:reward.costsAsRiskPct,netRewardRisk:reward.netRewardRisk,costs:marketCosts(s,market,costQuote),targetCapped:rr<s.minRR,stopATR:floor.stopATR,stopBps:floor.stopBps,adx:ind.adx[i],efficiency,extension,trendAlignment:trend===x.dir,higherAlignment:higherTrend===x.dir,higherTF,parameters:{...structuredClone(params),strictContinuation:strict},score,factors,warnings,status,size,regime,rvol,atr:a,replay,leverage:null,options:null};
+  return {id:`${setupKey}:${x.strategy}`,setupKey,symbol,market,tf,strategy:x.strategy,name:RULES[x.strategy].name.replace('34',String(params.emaPeriod)),...qualification,qualificationMode:s.qualificationMode||'strict',callWindowBars:s.callWindowBars??2,direction:x.dir>0?'bullish':'bearish',dir:x.dir,time:c.time*1000,confirmedAt:c.closeTime??(c.time+tf*60)*1000,price:c.close,entry,stop,target:c.close+x.dir*distance*rr,stopReason:floor.widened?'Swing stop widened to the ATR / basis-point noise floor':`Recent 5-bar swing plus ${params.stopBufferATR} ATR buffer`,invalidation:`${x.dir>0?'Below':'Above'} frozen stop invalidates; price moving outside the entry tolerance returns the setup to WATCH.`,exits:[{name:'1.5R scenario',price:c.close+x.dir*distance*1.5,rr:1.5},{name:'2R scenario',price:c.close+x.dir*distance*2,rr:2},...(structural?[{name:'Nearby structure',price:structural,rr}]:[])],exitNote:'Earlier exits reduce give-back but cap upside; trailing behind swings can capture trends but gives back open profit.',rr,netRR,costsAsRiskPct:reward.costsAsRiskPct,netRewardRisk:reward.netRewardRisk,costs:marketCosts(s,market,costQuote),targetCapped:rr<s.minRR,stopATR:floor.stopATR,stopBps:floor.stopBps,adx:ind.adx[i],efficiency,extension,trendAlignment:trend===x.dir,higherAlignment:higherTrend===x.dir,higherTF,parameters:{...structuredClone(params),strictContinuation:strict},score,factors,warnings,status,size,regime,rvol:indexData?null:rvol,...(indexData?{assetType:'index',volumeAvailable:false}:{}),atr:a,replay,leverage:null,options:null};
  });
- return {signals,analysis:{ready:true,regime,ema:e,vwap:v,atr:a,adx:ind.adx[i],rvol,efficiency,trend,higherTrend,lastClose:c.close,time:c.time*1000,bars:b.length}};
+ return {signals,analysis:{ready:true,...(indexData?{assetType:'index',volumeAvailable:false,strategyNote:'Price-only EMA strategies; volume and VWAP strategies unsupported'}:{}),regime,ema:e,vwap:v,atr:a,adx:ind.adx[i],rvol:indexData?null:rvol,efficiency,trend,higherTrend,lastClose:c.close,time:c.time*1000,bars:b.length}};
 }
 export function mergeSignals(existing,incoming,now,quotes={},limit=100){
  const map=new Map(existing.map(s=>[s.id,s]));
