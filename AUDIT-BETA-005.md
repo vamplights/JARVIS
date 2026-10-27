@@ -506,3 +506,24 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 - Integrated laptop commit 3d8c8e3 (independent Chart Pattern Analysis) with the preserved PC startup/storage changes. Retained the laptop's detectors, lifecycle, overlay UI, independent settings/history routes and tests.
 - Preserved lossless ledger settings references and frozen-payload compression, no-op write avoidance, reserved quote capacity, selected-chain priority/deduplication and bounded foreground-first startup. Earlier learning compatibility and confirmed-first display changes are already present in the laptop base and remain intact.
 - Added an integration regression proving chart-analysis toggles/evaluation leave the normalized historical ledger, frozen trades and learning observations unchanged. No local credentials, journal, models or runtime history are replaced by GitHub content.
+
+## Dashboard visual cleanup — 2026-10-27
+- Removed Market Context, Human in the Loop, Risk Guard and the position-size calculator from the Overview/Stocks/Crypto dashboard layout. Underlying calculations, gates, helper functions and trading behavior are preserved.
+- Added a theme-aware Chart Pattern Analysis switch in the top bar using the existing enabled setting and endpoint; retained the original analysis panel and its control.
+- Moved Options Chain below Signal Radar and the saved Watchlist Selection screen to the bottom. Renamed it Watchlist research snapshot, clarified that it is separate from the active watchlist, and replaced technical screening headings with plain-English explanations without altering values.
+- Added presentation-only layout, ordering, switch wiring/state and escaped research-label regression tests.
+
+
+## Readability and dashboard order — 2026-10-27
+- Moved the clock to the far right and removed the Read Only badge; broker order behavior is unchanged.
+- Moved Chart Pattern Analysis beneath Signal Radar while retaining the top-bar switch.
+- Standardized heading, explanatory-text and table typography and panel spacing across themes. Market & Event Checks now uses stacked, readable labels and values with consistent weight and clearer separation.
+- Presentation only: no signal, learning, risk, data or paper-trading logic changed.
+
+## Signals-first chart workspace — 2026-10-27
+- Top Picks and Signal Radar now lead the dashboard; the price chart and independent pattern analysis share a responsive row below. Narrow screens stack both panels.
+- Chart styling now uses green/red candles, cyan EMA, dashed amber VWAP, latest-price line/label and an initial OHLCV readout, retaining existing completed-candle calculations, overlays, zoom and pan. No trading or model logic changed.
+
+## Indicator-only interactive chart — 2026-10-27
+- Removed automatic setup selection, entry/stop/target drawings and pattern drawings from price charts; independent pattern analysis remains available beside them.
+- Chart scale now follows candles and EMA/VWAP only. Added bounded wheel zoom, drag-to-pan and a height slider preserved during refreshes. Existing toolbar and completed-candle EMA/VWAP calculations remain unchanged.
