@@ -26,7 +26,7 @@ export function enhancePanels(root,{page,preferences}){
   for(const node of [...panel.childNodes])if(node!==head)body.append(node);panel.append(body);
   const button=doc.createElement('button');button.type='button';button.className='small panel-toggle';button.setAttribute('aria-controls',body.id);head.append(button);
   const set=open=>{body.hidden=!open;panel.classList.toggle('panel-collapsed',!open);button.setAttribute('aria-expanded',String(open));button.setAttribute('aria-label',(open?'Collapse ':'Expand ')+title);button.textContent=open?'▾ Hide':'▸ Show';};
-  set(initialPanelOpen(page,preferences,key,head.classList.contains('chart-head')||panel.id==='signal-radar'||panel.id==='news-worth-a-look-v2'||panel.id==='appearance-settings'||['paper-filters-v2','paper-open-v2','paper-closed-v2'].includes(panel.id)||panel.id.startsWith('top-picks-')||title==='Watchlist'||/Worth a look|Notable movers/i.test(title)));
+  set(initialPanelOpen(page,preferences,key,panel.id==='chart-pattern-analysis'||head.classList.contains('chart-head')||panel.id==='signal-radar'||panel.id==='news-worth-a-look-v2'||panel.id==='appearance-settings'||['paper-filters-v2','paper-open-v2','paper-closed-v2'].includes(panel.id)||panel.id.startsWith('top-picks-')||title==='Watchlist'||/Worth a look|Notable movers/i.test(title)));
   button.addEventListener('click',()=>{const open=body.hidden;set(open);preferences.set(key,open);});clickablePanelHeader(head,button);records.push({panel,set(open){set(open);preferences.set(key,open);}});
  }
  // Reuse existing controls if an asynchronous panel (e.g. history) was replaced.

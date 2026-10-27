@@ -50,4 +50,6 @@ The Desktop installation from which this code was prepared remains separate. Run
 
 ## Switching from an existing installation
 
+Chart Pattern Analysis is a separate, default-OFF research mode. See [its usage guide, coverage matrix, validation results, and limitations](docs/CHART-PATTERN-ANALYSIS.md). It never enters the actionable-signal, paper-trading, notification, or model-training pipeline.
+
 Stop any currently running JARVIS instance before starting this checkout on the same port. To keep that computer's existing local history, make a backup and copy its `data` folder into this checkout while JARVIS is stopped. That folder remains ignored by Git. Windows-encrypted Robinhood authorization is tied to the Windows account; sign in independently on the laptop rather than copying authorization between computers.
