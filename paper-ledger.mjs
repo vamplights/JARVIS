@@ -1,3 +1,4 @@
+import {restoreLedger,ledgerForStorage} from './ledger-storage.mjs';
 import {entryExpiresAt,staleFor} from './signal-policy.mjs';
 import {optionContractEligible,optionReality} from './option-plan.mjs';
 // Persistent forward-only signal observations and simulated fills. No order API is used.
@@ -17,8 +18,8 @@ export function optionPaperEntry({ask,multiplier,budget,available,slippageBps,fe
  return {entry,size,reserved:entry*multiplier*size+feePerContract*size};
 }
 export class PaperLedger{
- constructor(dir){this.file=path.join(dir,'signal-paper-ledger.json');try{this.data=JSON.parse(fs.readFileSync(this.file,'utf8'));}catch(e){if(e.code!=='ENOENT')throw Error('Signal log cannot be read; original file preserved');this.data={version:1,enabled:false,startedAt:null,initialCapital:1500,riskPercent:1,feePerContract:.65,signals:[],trades:[],universe:[]};}this.data.enabled=false;this.data.observations??=[];this.error=null;this.lastTick=0;}
- save(){try{const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(this.data));fs.renameSync(tmp,this.file);this.error=null;}catch(e){this.error='Signal/paper log could not be saved: '+e.code;}}
+ constructor(dir){this.file=path.join(dir,'signal-paper-ledger.json');try{const stored=JSON.parse(fs.readFileSync(this.file,'utf8'));this.data=restoreLedger(stored);this.needsStorageBackup=stored.storageSchema!==2;}catch(e){if(e.code!=='ENOENT')throw Error('Signal log cannot be read; original file preserved');this.data={version:1,enabled:false,startedAt:null,initialCapital:1500,riskPercent:1,feePerContract:.65,signals:[],trades:[],universe:[]};}this.data.enabled=false;this.data.observations??=[];this.error=null;this.lastTick=0;}
+ save(){try{if(this.needsStorageBackup){const backup=this.file+'.before-settings-pool';if(!fs.existsSync(backup))fs.copyFileSync(this.file,backup);this.needsStorageBackup=false;}const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(ledgerForStorage(this.data)));fs.renameSync(tmp,this.file);this.error=null;}catch(e){this.error='Signal/paper log could not be saved: '+e.code;}}
  configure(x,settings){if(typeof x.enabled!=='boolean')throw Error('Choose paper mode on/off');if(x.riskPercent!==undefined&&(!(x.riskPercent>0)||x.riskPercent>10))throw Error('Paper risk percentage must be above 0 and at most 10');if(x.feePerContract!==undefined&&(!(x.feePerContract>=0)||x.feePerContract>100))throw Error('Invalid per-contract fee');if(!this.data.startedAt&&x.enabled){this.data.initialCapital=settings.capital;this.data.startedAt=Date.now();}this.data.enabled=x.enabled;this.data.riskPercent=x.riskPercent??this.data.riskPercent;this.data.feePerContract=x.feePerContract??this.data.feePerContract;this.save();}
  rememberOptionPlan(signal,now){const p=signal.optionPlan;if(!p?.contract||p.reality?.blocked!==false||p.reality?.available!==true||signal.replay||signal.legacyProfile)return;
  const row=this.data.signals.find(r=>r.id===signal.id);if(!row)return;row.optionPlans??={};if(row.optionPlans[p.contract.id])return;row.optionPlans[p.contract.id]={plan:structuredClone(p),signal:structuredClone({...signal,optionPlan:undefined}),issuedAt:now};return true;
@@ -77,16 +78,17 @@ export class PaperLedger{
   const universe=JSON.stringify({stocks:settings.stocks,crypto:settings.crypto}),last=this.data.universe.at(-1);if(last?.symbols!==universe){this.data.universe.push({time:now,symbols:universe});changed=true;}
   const known=new Map(this.data.signals.map(s=>[s.id,s]));
   for(const s of signals){let row=known.get(s.id);if(!row){const recent=now<=entryExpiresAt(s,settings);row={id:s.id,profile:settingsProfile(settings),timestamp:now,candleClose:s.confirmedAt,symbol:s.symbol,source:s.source,fallback:!!s.fallback,strategies:s.strategies,confluenceCount:s.confluenceCount,market:s.market,strategy:s.strategy,timeframe:s.tf,direction:s.direction,dir:s.dir,entry:s.price,entryRange:s.entry,stop:s.stop,target:s.target??s.price+s.dir*Math.abs(s.price-s.stop)*2,rr:s.rr??2,netRR:s.netRR,signalStatus:s.status,outcome:recent?'active':'expired',expiresAt:now+s.tf*12*60000,lastChecked:now,lastBarEnd:now,firstSeenStatus:s.status,why:s.factors?.find(f=>f.name==='Candle confirmation')?.detail,cohort:s.status==='CONFIRMED'&&s.paperEligible!==false?'confirmed':'raw',targetCapped:s.rr<settings.minRR,regime:s.regime,adx:s.adx??null,efficiency:s.efficiency??null,stopATR:s.stopATR??null,newsIds:s.optionPlan?.newsLinks?.map(n=>n.url)||[],settings:structuredClone(settings)};this.data.signals.push(row);known.set(s.id,row);changed=true;}
-   if(!row.engineSnapshot&&(s.frozen||s.status==='CONFIRMED')){row.engineSnapshot=structuredClone(s);changed=true;}if(s.status==='INVALIDATED'&&row.engineSnapshot){row.engineSnapshot.status='INVALIDATED';changed=true;}
+   if(!row.engineSnapshot&&(s.frozen||s.status==='CONFIRMED')){row.engineSnapshot=structuredClone(s);changed=true;}if(s.status==='INVALIDATED'&&row.engineSnapshot&&row.engineSnapshot.status!=='INVALIDATED'){row.engineSnapshot.status='INVALIDATED';changed=true;}
    if(this.rememberOptionPlan(s,now))changed=true;
    if(row.signalStatus!==s.status){row.signalStatus=s.status;changed=true;}
    if(this.data.enabled&&s.paperEligible!==false&&s.status==='CONFIRMED'&&row.outcome==='active'&&!row.paperQueued&&now<=entryExpiresAt(s,settings)){row.paperQueued=true;row.paperQueuedAt=now;row.paperSnapshot=structuredClone(s);changed=true;}
   }
   for(const row of this.data.signals){const a=assets[row.symbol],q=a?.quote;if(row.outcome==='active'){
     const bars=(a?.bars||[]).filter(b=>b.complete!==false&&b.time*1000>=row.timestamp&&(b.time+a.base)*1000>row.lastBarEnd&&(b.time+a.base)*1000<=now&&b.time*1000<row.expiresAt).sort((a,b)=>a.time-b.time);
-    for(const b of bars){row.lastBarEnd=(b.time+a.base)*1000;const stop=row.dir>0?b.low<=row.stop:b.high>=row.stop,target=row.dir>0?b.high>=row.target:b.low<=row.target;if(stop||target){row.outcome=stop?'stopped out':'hit target';row.outcomeAt=(b.time+a.base)*1000;row.ambiguous=stop&&target;break;}}
+    const needsCheck=bars.length||now>=row.expiresAt||fresh(q,now,settings.staleSeconds)&&q.time>row.lastChecked;
+    if(needsCheck){for(const b of bars){row.lastBarEnd=(b.time+a.base)*1000;const stop=row.dir>0?b.low<=row.stop:b.high>=row.stop,target=row.dir>0?b.high>=row.target:b.low<=row.target;if(stop||target){row.outcome=stop?'stopped out':'hit target';row.outcomeAt=(b.time+a.base)*1000;row.ambiguous=stop&&target;break;}}
     if(row.outcome==='active'&&fresh(q,now,settings.staleSeconds)&&q.time>row.timestamp){if((q.price-row.stop)*row.dir<=0){row.outcome='stopped out';row.outcomeAt=q.time;}else if((q.price-row.target)*row.dir>=0){row.outcome='hit target';row.outcomeAt=q.time;}}
-    if(row.outcome==='active'&&now>=row.expiresAt){row.outcome='expired';row.outcomeAt=now;}row.lastChecked=now;changed=true;
+    if(row.outcome==='active'&&now>=row.expiresAt){row.outcome='expired';row.outcomeAt=now;}row.lastChecked=now;changed=true;}
    }
    if(!this.data.enabled||!row.paperQueued||row.paperConsidered)continue;
    if(now>entryExpiresAt(row.paperSnapshot||{confirmedAt:row.paperQueuedAt,tf:row.timeframe},settings)||row.outcome!=='active'){row.paperConsidered=true;row.paperSkip='Entry window expired before an eligible forward quote';changed=true;continue;}

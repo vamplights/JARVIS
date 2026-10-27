@@ -62,14 +62,15 @@ export class RobinhoodClient {
  }
  pumpMarketQueue(){
   this.marketQueue.sort((a,b)=>a.priority-b.priority);
-  while(this.marketRunning<3){const index=this.marketQueue.findIndex(j=>j.priority===0||this.backgroundRunning<2);if(index<0)return;const job=this.marketQueue.splice(index,1)[0];this.marketRunning++;if(job.priority!==0)this.backgroundRunning++;
-   Promise.resolve().then(job.run).then(job.resolve,job.reject).finally(()=>{this.marketRunning--;if(job.priority!==0)this.backgroundRunning--;this.pumpMarketQueue();});
+  while(this.marketRunning<3){const index=this.marketQueue.findIndex(j=>j.reserveQuote||this.backgroundRunning<2);if(index<0)return;const job=this.marketQueue.splice(index,1)[0];this.marketRunning++;if(!job.reserveQuote)this.backgroundRunning++;
+   Promise.resolve().then(job.run).then(job.resolve,job.reject).finally(()=>{this.marketRunning--;if(!job.reserveQuote)this.backgroundRunning--;this.pumpMarketQueue();});
   }
  }
- async call(name,args){
+ async call(name,args,options={}){
   if(!MARKET_TOOLS.has(name))throw new Error('Only approved market-data reads are allowed');
-  const generation=this.generation,priority=['get_equity_quotes','get_index_quotes'].includes(name)?0:['get_equity_historicals','get_index_historicals'].includes(name)?1:name==='get_option_quotes'?2:3;
-  return new Promise((resolve,reject)=>{this.marketQueue.push({priority,resolve,reject,run:()=>this.marketRead(name,args,generation)});this.pumpMarketQueue();});
+  const generation=this.generation,priority=options.priority??(['get_equity_quotes','get_index_quotes','get_option_quotes'].includes(name)?0:['get_equity_historicals','get_index_historicals'].includes(name)?2:3);
+  if(!Number.isInteger(priority)||priority<0||priority>3)throw Error('Invalid market-data priority');
+  return new Promise((resolve,reject)=>{this.marketQueue.push({priority,reserveQuote:['get_equity_quotes','get_index_quotes'].includes(name),resolve,reject,run:()=>this.marketRead(name,args,generation)});this.pumpMarketQueue();});
  }
  async marketRead(name,args,generation){
   let renewed=false;

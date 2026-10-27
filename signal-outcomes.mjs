@@ -26,7 +26,7 @@ export function observeSignalOutcomes(data,signals,assets,settings,now){
   for(const b of bars){excursion(b.high);excursion(b.low);row.lastBarEnd=(b.time+a.base)*1000;changed=true;const stop=row.dir>0?b.low<=row.stop:b.high>=row.stop,target=row.dir>0?b.high>=row.target:b.low<=row.target;
    if(stop||target){exit=stop?(row.dir>0?Math.min(b.open,row.stop):Math.max(b.open,row.stop)):row.target;exitAt=row.lastBarEnd;reason=stop?'stopped out':'hit target';row.ambiguous=stop&&target;break;}
   }
-  if(exit===null&&validQuote(q,now,seconds)&&q.time>row.entryAt&&q.time<=row.expiresAt){excursion(q.price);changed=true;if((q.price-row.stop)*row.dir<=0||(q.price-row.target)*row.dir>=0){exit=q.price;exitAt=q.time;reason=(q.price-row.stop)*row.dir<=0?'stopped out':'hit target';exitQuote=q;}}
+  if(exit===null&&validQuote(q,now,seconds)&&q.time>row.entryAt&&q.time>(row.lastQuoteTime??0)&&q.time<=row.expiresAt){row.lastQuoteTime=q.time;excursion(q.price);changed=true;if((q.price-row.stop)*row.dir<=0||(q.price-row.target)*row.dir>=0){exit=q.price;exitAt=q.time;reason=(q.price-row.stop)*row.dir<=0?'stopped out':'hit target';exitQuote=q;}}
   if(exit===null&&now>=row.expiresAt){
    const last=(a?.bars||[]).filter(b=>b.complete!==false&&b.time*1000>=row.entryAt&&(b.time+a.base)*1000<=row.expiresAt&&(b.time+a.base)*1000>=row.expiresAt-Math.max(a.base*1000,seconds*1000)).sort((a,b)=>a.time-b.time).at(-1);
    if(validQuote(q,now,seconds)&&q.time>row.entryAt&&Math.abs(q.time-row.expiresAt)<=seconds*1000){exit=q.price;exitAt=q.time;exitQuote=q;}
