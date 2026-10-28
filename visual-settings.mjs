@@ -1,6 +1,6 @@
 // Presentation preferences and journal summaries only; never used by strategy or risk engines.
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export const THEMES=[['midnight','Midnight','Original teal','#67dfd2'],['ocean','Ocean','Deep blue','#86b9ff'],['amethyst','Amethyst','Soft violet','#c0a0ff'],['graphite','Graphite','Quiet neutral','#c8d2db'],['daylight','Daylight','Light workspace','#166d80']];
+export const THEMES=[['midnight','Midnight','Ink & jade','#93cbbb'],['ocean','Ocean','Slate & blue','#9bbfeb'],['amethyst','Amethyst','Muted violet','#c5b3e5'],['graphite','Graphite','Silver & charcoal','#c6cfd8'],['daylight','Daylight','Paper & evergreen','#246c61']];
 const THEME_KEY='jarvis.appearance.theme.v1';
 export function readTheme(storage){try{const id=storage?.getItem(THEME_KEY);return THEMES.some(t=>t[0]===id)?id:'midnight';}catch{return 'midnight';}}
 export function applyTheme(doc,id,storage){if(!THEMES.some(t=>t[0]===id))id='midnight';doc.documentElement.dataset.theme=id;for(const b of doc.querySelectorAll('[data-theme-choice]')){const active=b.dataset.themeChoice===id;b.setAttribute('aria-pressed',String(active));b.classList.toggle('selected',active);}try{storage?.setItem(THEME_KEY,id);}catch{}return id;}
