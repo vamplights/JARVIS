@@ -1,0 +1,2 @@
+// Display-only candle aggregation; never imported by the strategy engine.
+export function chartBars(rows,minutes){const span=minutes*60,out=new Map();for(const b of [...rows].sort((a,b)=>a.time-b.time)){const time=Math.floor(b.time/span)*span,old=out.get(time);out.set(time,old?{...old,high:Math.max(old.high,b.high),low:Math.min(old.low,b.low),close:b.close,volume:old.volume+b.volume}:{...b,time});}return [...out.values()];}

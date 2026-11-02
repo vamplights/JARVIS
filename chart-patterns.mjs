@@ -117,7 +117,7 @@ export function detectPatterns(b,{settings=PATTERN_DEFAULTS,market='crypto',tf=5
 }
 
 export function analysisInput(asset,tf,now,s=PATTERN_DEFAULTS){
- const historical=!!asset.replay,delayed=!!(asset.fallback||asset.publicData||asset.snapshot||!['Robinhood','Coinbase Exchange'].includes(asset.source)),last=asset.bars?.at(-1),age=last?now-(last.closeTime??(last.time+asset.base)*1000):Infinity,quoteFresh=asset.quote?.time<=now+5000&&now-asset.quote.time<=s.staleSeconds*1000;
+ const historical=!!asset.replay,delayed=!!(asset.fallback||asset.publicData||asset.snapshot||!['Robinhood','Coinbase Exchange','Alpaca IEX'].includes(asset.source)),last=asset.bars?.at(-1),age=last?now-(last.closeTime??(last.time+asset.base)*1000):Infinity,quoteFresh=asset.quote?.time<=now+5000&&now-asset.quote.time<=s.staleSeconds*1000;
  let freshness=historical?'historical':age>Math.max(s.staleSeconds*1000,asset.base*1000)||!quoteFresh?'stale':delayed?'delayed':'live',reason='';
  if(!last||!asset.base||tf*60<asset.base||tf*60%asset.base)return {bars:[],freshness,reason:'Timeframe unavailable from this candle cache'};
  if(asset.bars.some(x=>!Number.isInteger(x.time)||x.time%asset.base!==0||Number.isFinite(x.volume)&&x.volume<0))return {bars:[],freshness,reason:'Invalid candle timestamp, alignment, or volume'};

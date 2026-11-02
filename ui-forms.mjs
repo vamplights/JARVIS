@@ -65,3 +65,7 @@ export function watchlistResearchPanel(screen,{open=false,esc=escapeResearch,dat
 
 // Display-only viewport bounds; never used by the signal engine.
 export function chartViewport(count,back,total,{zoom=0,pan=0}={}){const size=Math.min(500,Math.max(20,Math.round(count+zoom))),offset=Math.min(Math.max(0,total-20),Math.max(0,Math.round(back+pan)));return {count:size,back:offset};}
+
+export const CHART_PRESETS=[1,3,5,15,60,1440];
+export function customChartMinutes(value,base=60){const n=Number(value);return Number.isInteger(n)&&n>=1&&n<=1440&&n*60>=base&&n*60%base===0?n:null;}
+export function chartFrameButtons(frames,current){return '<div class="chart-frame-selector"><span class="chart-frame-label">Chart timeframe</span><div class="chart-frame-buttons" role="group" aria-label="Chart timeframe">'+frames.map(tf=>'<button type="button" data-chart-frame="'+tf+'" aria-pressed="'+(tf===current)+'" class="'+(tf===current?'active':'')+'">'+(tf===1440?'1D':tf===60?'1h':tf+'m')+'</button>').join('')+'</div><label class="chart-custom-frame">Custom minutes<input name="chart-custom-minutes" type="number" min="1" max="1440" step="1" placeholder="e.g. 10" value="'+(CHART_PRESETS.includes(current)?'':current)+'"><button type="button" data-chart-custom-apply>Apply</button></label><small>Chart only · 1–1,440 minutes, using available source candles.</small></div>';}

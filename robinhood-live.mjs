@@ -56,7 +56,7 @@ export class RobinhoodLive {
  refreshHistory(epoch=this.epoch){
   const symbols=this.settings().stocks,interval=session(Date.now(),this.settings()).regular?60000:300000;
   if(this.historyJob||this.historyNextRefresh>Date.now()||this.historyAt&&Date.now()-this.historyAt<interval&&symbols.every(s=>this.histories.has(s)))return this.historyJob;
-  const job=(async()=>{await Promise.resolve();const errors=[];try{
+  const job=(async()=>{await Promise.resolve();const errors=[];let updated=false;try{
    for(const symbol of symbols){if(epoch!==this.epoch)return;try{
     const prior=this.histories.get(symbol)?.bars?.at(-1),last=Date.parse(prior?.begins_at),start=historyStart(Date.now(),this.settings()),startTime=Number.isFinite(last)?new Date(Math.max(Date.parse(start),last-120000)).toISOString():start;
     const data=isIndexSymbol(symbol)?{results:[await this.indexHistory(symbol,startTime)]}:await this.client.call('get_equity_historicals',{symbols:[symbol],interval:'minute',bounds:'regular',adjustment_type:'split',start_time:startTime,end_time:new Date().toISOString()});if(epoch!==this.epoch)return;
@@ -64,10 +64,12 @@ export class RobinhoodLive {
     // Validate each response before merging and never mix other providers into this history.
     parseRobinhoodSnapshot({provider:'Robinhood MCP',capturedAt:new Date().toISOString(),quotes:this.quotes,history:{results:[h]}});
     const merged=new Map((this.histories.get(symbol)?.bars||[]).map(b=>[b.begins_at,b]));for(const bar of h.bars)if(bar)merged.set(bar.begins_at,{...bar,complete:Date.parse(bar.begins_at)+60000<=Date.now()-2000});
-    this.histories.set(symbol,{...h,bars:[...merged.values()].sort((a,b)=>Date.parse(a.begins_at)-Date.parse(b.begins_at)).slice(-2000)});this.publishAssets();this.onChange();
+    this.histories.set(symbol,{...h,bars:[...merged.values()].sort((a,b)=>Date.parse(a.begins_at)-Date.parse(b.begins_at)).slice(-2000)});updated=true;this.onChange();
    }catch(e){errors.push(symbol+': '+e.message);if(e.status===429||errors.length>=3)break;}}
    if(epoch!==this.epoch)return;
-   if(errors.length){this.historyError=errors.join('; ');this.historyNextRefresh=Date.now()+30000;}else{this.historyAt=Date.now();this.historyError=null;this.publishAssets();}
+   if(errors.length){this.historyError=errors.join('; ');this.historyNextRefresh=Date.now()+30000;}else{this.historyAt=Date.now();this.historyError=null;}
+   // Publish (re-parse + write the snapshot) once per refresh instead of once per symbol.
+   if(updated||!errors.length)this.publishAssets();
   }catch(e){if(epoch===this.epoch){this.historyError=e.message;this.historyNextRefresh=Date.now()+30000;}}
   finally{if(this.historyJob===job)this.historyJob=null;this.onChange();}})();this.historyJob=job;return job;
  }

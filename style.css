@@ -550,3 +550,26 @@ dialog::backdrop { background: #05090dc4; backdrop-filter: blur(4px); }
 @media (prefers-reduced-motion: reduce) {
   .high-quality-alert { animation: none; outline-color: var(--cyan); }
 }
+
+.pattern-current-read{padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin:16px 0}.pattern-current-read h3{font-size:20px;margin-bottom:8px}.pattern-current-read p{font-size:13px;margin:0}
+
+/* Direction has one consistent meaning; neutral stays white on a readable dark label. */
+.pattern-current-read[data-direction="bullish"] h3,.pattern-finding .pattern-direction.bullish{color:var(--green)}
+.pattern-current-read[data-direction="bearish"] h3,.pattern-finding .pattern-direction.bearish{color:var(--red)}
+.pattern-current-read[data-direction="neutral"] h3,.pattern-finding .pattern-direction.neutral{color:#f2f5f8;background:#17232c;border-radius:6px;padding:5px 9px;display:inline-block}
+
+/* Restrained semantic accents; color reinforces the existing status labels. */
+section[id^="top-picks-"]>.panel-head h2{color:var(--amber)}section[id^="top-picks-"]{border-top:2px solid var(--amber)}
+.signal-card[data-direction="bullish"]{border-left:3px solid var(--green)}.signal-card[data-direction="bearish"]{border-left:3px solid var(--red)}
+.signal-card[data-setup-status="SETUP FORMING"] .signal-status .badge,.signal-card[data-setup-status="STALE"] .signal-status .badge{color:var(--amber);border-color:var(--amber);background:var(--panel2)}
+.chart-frame-selector{display:flex;flex-wrap:wrap;gap:10px;align-items:center;width:100%;margin-top:8px}.chart-frame-label{font-size:12px;color:var(--muted);width:100%}.chart-frame-buttons{display:flex;flex-wrap:wrap;gap:6px}.chart-frame-buttons button{font-size:13px;padding:7px 11px}.chart-frame-buttons button.active,.chart-frame-buttons button[aria-pressed="true"]{color:var(--cyan);border-color:var(--cyan);background:var(--panel2);box-shadow:inset 0 -2px var(--cyan)}.chart-controls .chart-custom-frame{display:flex;flex:none;flex-direction:row;align-items:center;gap:8px;font-size:12px;color:var(--muted)}.chart-custom-frame input{width:88px;padding:7px;min-width:0}.chart-frame-selector>small{width:100%;font-size:12px;color:var(--muted)}input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+
+.pattern-settings-grid label small{font-size:12px;color:var(--muted);line-height:1.6;font-weight:400}.pattern-technical summary{color:var(--muted);font-size:13px}.pattern-finding dl{font-variant-numeric:tabular-nums}.pattern-finding dd{line-height:1.6}
+
+/* Dedicated live chart expands without replacing the research workspace. */
+#dialog.live-chart-dialog{width:min(1250px,97vw);max-width:1250px}.live-chart-dialog .dialog-body{padding:20px}.live-chart-controls{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:18px 0}.live-chart-controls .field{max-width:200px}.live-chart-controls button{min-height:40px}#alpaca-chart-canvas{height:440px;width:100%;min-width:0;border:1px solid var(--line);border-radius:6px;overflow:hidden}#alpaca-connect{padding:12px 16px;border:1px solid var(--line);border-radius:6px}#alpaca-connect summary{cursor:pointer;color:var(--cyan)}#alpaca-connect form{margin-top:16px}#alpaca-chart-status{min-height:22px}#alpaca-chart-readout{min-height:22px;font-size:12px}@media(max-width:600px){#alpaca-chart-canvas{height:340px}.live-chart-dialog .dialog-body{padding:12px}.live-chart-controls .field{max-width:none;flex:1 1 120px}}
+.workspace-chart-stage{position:relative;min-width:0}.workspace-chart-canvas{position:absolute;inset:0}.workspace-pattern-overlay{position:absolute;inset:0;pointer-events:none;z-index:2;overflow:hidden}.chart-analysis-grid .chart .workspace-pattern-overlay{border:0;background:none;border-radius:0;min-height:0}.chart-indicator-controls{padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:12px}.chart-indicator-controls summary{cursor:pointer;color:var(--cyan)}.chart-indicator-controls form{display:grid;gap:12px;margin-top:12px}.ema-setting{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.ema-setting label{display:flex;align-items:center;gap:6px;font-size:12px}.ema-setting input[type=number]{width:80px;padding:6px}.ema-setting input[type=color]{width:40px;height:30px;padding:2px}.chart-indicator-controls input[type=checkbox]{accent-color:var(--cyan)}#workspace-chart .chart-toolbar{align-items:center}#workspace-chart [data-chart-source]{overflow-wrap:anywhere}.chart-analysis-grid .chart:has(#workspace-chart){min-height:0}.chart-analysis-grid .chart .workspace-pattern-overlay{width:100%;height:100%}
+
+.chart-credit{position:relative;margin-left:auto;font-size:11px;color:var(--muted)}.chart-credit summary{cursor:pointer;list-style:none;padding:5px 0}.chart-credit summary::-webkit-details-marker{display:none}.chart-credit p{position:absolute;right:0;top:100%;z-index:5;width:230px;margin:4px 0;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px #0004}.chart-credit a{color:var(--muted)}
+
+#signal-radar .empty-state-message, [id^="top-picks-"] .empty-state-message { color: #fff; font-size: 17px; font-weight: 650; }

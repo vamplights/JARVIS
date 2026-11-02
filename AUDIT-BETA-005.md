@@ -527,3 +527,18 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 ## Indicator-only interactive chart — 2026-10-27
 - Removed automatic setup selection, entry/stop/target drawings and pattern drawings from price charts; independent pattern analysis remains available beside them.
 - Chart scale now follows candles and EMA/VWAP only. Added bounded wheel zoom, drag-to-pan and a height slider preserved during refreshes. Existing toolbar and completed-candle EMA/VWAP calculations remain unchanged.
+
+## One chart-pattern interpretation — 2026-10-27
+- Replaced the historical pattern selector with one current read. Use the newest evaluated active candle, prioritize confirmed over forming/provisional detections, and show mixed/no clear direction when equally current peers conflict. Stale feeds explicitly say last observed.
+- Detection rules, saved history, learning and trading behavior are unchanged; every original detection remains exportable.
+
+## Direction colors — 2026-10-27
+- Pattern readings and their interpretation line now use green for bullish, red for bearish, and white for neutral/mixed. Last-observed readings retain direction color and freshness wording. Neutral labels use a dark backing to remain legible in light themes. Display only.
+
+## Chart interval buttons and semantic accents — 2026-10-27
+- Added preset chart buttons and validated custom whole-minute intervals (source-interval multiples, up to one day), independently of signal settings. Custom chart intervals use one-minute source history; pattern analysis clearly labels custom intervals unsupported rather than showing another timeframe’s detections.
+- Gold Top Picks headings, directional card edges, amber forming/stale badges and cyan selected/focused controls improve scanning without emojis or trading changes.
+
+## Plain-language pattern detail — 2026-10-27
+- Display prices with two decimals and local timestamps to the minute. Convert raw pivot timestamps and long decimals in evidence to readable presentation text.
+- Keep the primary view focused on interpretation and key levels; move technical evidence/timestamps into a collapsed Advanced disclosure. Detection settings stay available under Advanced with plain-language explanations; no detection values, stored evidence or trading rules changed.

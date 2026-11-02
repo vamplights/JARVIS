@@ -1,3 +1,4 @@
+import {resolveEma9Paper,EMA9_PROTOCOL,EMA9_VWAP} from './ema9-vwap.mjs';
 import {selectedWinEstimate} from './signal-policy.mjs';
 import {createJarvisPaper} from './jarvis-paper-core.mjs';
 import {AutoPaper} from './auto-paper.mjs';
@@ -29,12 +30,12 @@ export class JarvisForward extends AutoPaper{
   return this.observe(signals.map(s=>s.market==='stocks'?{...s,learningOnly:true}:s),assets,now);
  }
  observe(signals,assets,now=this.now()){
-  const settings=this.settings(),profile=settingsProfile(settings);let changed=false;
+  const settings=this.settings(),profile=settingsProfile(settings);let changed=resolveEma9Paper(this.data,signals,assets,settings,profile,now);
   // Keep resolving already-issued legacy rows with their original execution rules.
-  const legacyRows=this.data.rows.filter(r=>r.forwardProtocol!==PROTOCOL);
+  const legacyRows=this.data.rows.filter(r=>r.forwardProtocol!==PROTOCOL&&r.forwardProtocol!==EMA9_PROTOCOL);
   if(legacyRows.length){const legacy=new AutoPaper({dir:null,settings:this.settings,now:this.now});legacy.data={...this.data,rows:legacyRows};changed=legacy.observe([],assets,now)||changed;}
   const known=new Set(this.data.rows.map(r=>r.id));
-  for(const sig of signals){if(!confirmedForwardEligible(sig,settings,now)||assets[sig.symbol]?.replay)continue;const id=[sig.id,profile,'jarvis-forward'].join('|');if(known.has(id))continue;known.add(id);
+  for(const sig of signals){if(sig.strategy===EMA9_VWAP)continue;if(!confirmedForwardEligible(sig,settings,now)||assets[sig.symbol]?.replay)continue;const id=[sig.id,profile,'jarvis-forward'].join('|');if(known.has(id))continue;known.add(id);
    const estimate=selectedWinEstimate(sig),quote=assets[sig.symbol]?.quote,fresh=quote?.time<=now&&now-quote.time<=(sig.market==='stocks'?settings.stockStaleSeconds:settings.staleSeconds)*1000,costs=marketCosts(settings,sig.market,fresh?quote:null),mult=settings.forwardExitMode==='1.5R'?1.5:2,target=sig.price+sig.dir*mult*Math.abs(sig.price-sig.stop),metrics=rewardMetrics(sig.price,sig.stop,target,sig.market,settings,fresh?quote:null);
    const features=signalFeatures({...sig,target,rr:mult,netRR:metrics.netRR,targetCapped:false});
    this.data.forwardSettings[profile]??=structuredClone(settings);
@@ -51,7 +52,7 @@ export class JarvisForward extends AutoPaper{
    else if(raw.status==='skipped'||raw.status==='unresolved'){row.state=raw.status==='skipped'?'missed fill':'unmeasurable';row.reason=raw.note||raw.status;}
    if(before!==JSON.stringify(raw))changed=true;
   }
-  if(changed)this.save();return changed;
+  if(changed)this.saveSoon();return changed;
  }
  async refreshMinuteData(history,now=this.now()){
   if(this.refreshing)return;const pending=[...new Map(this.data.rows.filter(r=>r.forwardProtocol===PROTOCOL&&!r.forwardArchived&&r.forwardCore.status==='open'&&r.market==='crypto').map(r=>[r.symbol,r])).values()].filter(r=>now-(this.minuteRefresh.get(r.symbol)||0)>=60000);if(!pending.length)return;this.refreshing=true;
