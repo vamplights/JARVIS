@@ -34,7 +34,7 @@ export function notificationCategory(item={}){
 
 // Display rounding only: never feed rounded levels back into evaluation or fills.
 export function signalPrice(value){return Number.isFinite(value)?new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2}).format(value):'—';}
-export function groupSignalCards(signals){const groups=new Map();for(const s of signals){const key=[s.market,s.symbol].join('|');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(s);}return [...groups.values()];}
+export function groupSignalCards(signals){const groups=new Map();for(const s of signals){const key=[s.market,s.symbol].join('|');if(!groups.has(key))groups.set(key,[]);const group=groups.get(key);if(s.id==null||!group.some(plan=>plan.id===s.id))group.push(s);}return [...groups.values()];}
 export function connectionSummary(state,now=Date.now(),offline=false){
  const status=state.status||{},recent=(t,limit)=>Number.isFinite(t)&&now-t>=-5000&&now-t<=limit;
  const coinbase=!offline&&status.feed==='CONNECTED'&&recent(status.lastMessage,15000),rh=status.robinhoodLive||{},robinhood=!offline&&rh.connected===true;

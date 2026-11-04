@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,migrateBetaSettings,strategyEnabled,evaluate,backtest} from '../engine.mjs';
-import {retestSetups,strategySeries,resolveEma9Paper,EMA9_VWAP,EMA9_PROTOCOL} from '../ema9-vwap.mjs';
-import {combineSignals} from '../confluence.mjs';
-import {JarvisForward} from '../jarvis-forward.mjs';
+import {DEFAULTS,migrateBetaSettings,strategyEnabled,evaluate,backtest} from '../modules/engine.mjs';
+import {retestSetups,strategySeries,resolveEma9Paper,EMA9_VWAP,EMA9_PROTOCOL} from '../modules/ema9-vwap.mjs';
+import {combineSignals} from '../modules/confluence.mjs';
+import {JarvisForward} from '../modules/jarvis-forward.mjs';
 const settings=()=>structuredClone(DEFAULTS),start=Date.parse('2026-10-27T13:30:00Z');
 const bar=(i,extra={})=>({time:start/1000+i*60,open:100,high:100.1,low:99.9,close:100,volume:100,complete:true,...extra});
 const row=(i,extra={})=>({...bar(i*3),date:'2026-10-27',ema:99,vwap:100,...extra});

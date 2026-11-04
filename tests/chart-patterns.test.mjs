@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {detectPatterns,confirmedPivots,patternSettings,analysisInput,advanceFormation,followupCandidates,supportingEvidence} from '../chart-patterns.mjs';
+import {detectPatterns,confirmedPivots,patternSettings,analysisInput,advanceFormation,followupCandidates,supportingEvidence} from '../modules/chart-patterns.mjs';
 import {S,T,candles,mirror,boundary,extrema,bowl,candleShape} from './chart-pattern-fixtures.mjs';
 const detected=(b,s=S,market='crypto')=>detectPatterns(b,{settings:s,market,tf:5});
 const cases=[

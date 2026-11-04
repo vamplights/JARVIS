@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {researchWorkspace,researchRoute} from '../research-workspace.mjs';
-import {normalizeSidebar} from '../sidebar-layout.mjs';
-import {VERSION} from '../local-cycle.mjs';
+import {researchWorkspace,researchRoute} from '../modules/research-workspace.mjs';
+import {normalizeSidebar} from '../modules/sidebar-layout.mjs';
+import {VERSION} from '../modules/local-cycle.mjs';
 
 test('Research workspace retains all three sections, with Strategy Lab last and a single page heading/footer',()=>{
  const html=researchWorkspace({heading:'<h1>Research, Confidence & Outcomes</h1>',confidence:'<p>Models and sources</p>',outcomes:'<table>Measured outcomes</table>',lab:'<form id="replay-form">Replay controls</form>',footer:'<footer>Local research</footer>'});
@@ -25,5 +25,5 @@ test('Independent section refreshes preserve the replay form and initialize ever
 test('Jarvis 1.5 changes the displayed release without rewriting protocol identifiers or the JARVIS tab title',()=>{
  assert.equal(VERSION,'Jarvis 1.5');const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));assert.equal(pkg.version,'1.5.0');
  const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(app,/Jarvis 1.5/);assert.match(app,/intelligence:'Research, Confidence & Outcomes'/);assert.ok(!app.includes("performance:'Signal Outcomes'"));assert.match(html,/<title>JARVIS<\/title>/);
- const auto=fs.readFileSync(new URL('../auto-paper.mjs',import.meta.url),'utf8');assert.match(auto,/beta010-paper-v1/);
+ const auto=fs.readFileSync(new URL('../modules/auto-paper.mjs',import.meta.url),'utf8');assert.match(auto,/beta010-paper-v1/);
 });

@@ -5,11 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {DEFAULTS,marketCosts} from '../engine.mjs';
-import {observeSignalOutcomes} from '../signal-outcomes.mjs';
-import {PaperLedger} from '../paper-ledger.mjs';
-import {analyzeLedger,summarizeR,bootstrapMeanCI,pooledReplayStats,settingsProfile} from '../stats.mjs';
-import {expectancyTable} from '../outcome-view.mjs';
+import {DEFAULTS,marketCosts} from '../modules/engine.mjs';
+import {observeSignalOutcomes} from '../modules/signal-outcomes.mjs';
+import {PaperLedger} from '../modules/paper-ledger.mjs';
+import {analyzeLedger,summarizeR,bootstrapMeanCI,pooledReplayStats,settingsProfile} from '../modules/stats.mjs';
+import {expectancyTable} from '../modules/outcome-view.mjs';
 const now=Date.parse('2026-10-12T14:00Z'),s=structuredClone(DEFAULTS),sig={id:'SPY:3:ema:1',symbol:'SPY',market:'stocks',strategy:'ema-cross',tf:3,dir:1,price:100,stop:99,target:102,rr:2,status:'CONFIRMED',regime:'Trending',adx:30,efficiency:.6,stopATR:1,confirmedAt:now,atr:1,warnings:[]};
 const fresh=(price,time)=>({price,bid:price-.005,ask:price+.005,time});
 function fixture(){return {data:{observations:[]},assets:{SPY:{base:60,bars:[],quote:fresh(100,now)}}};}

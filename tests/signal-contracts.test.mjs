@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RobinhoodLive} from '../robinhood-live.mjs';
-import {DEFAULTS,parts} from '../engine.mjs';
-import {optionSignalPlan} from '../option-plan.mjs';
+import {RobinhoodLive} from '../modules/robinhood-live.mjs';
+import {DEFAULTS,parts} from '../modules/engine.mjs';
+import {optionSignalPlan} from '../modules/option-plan.mjs';
 function fixture(){
  const calls=[],expiry=parts(Date.now(),'America/New_York').date,settings=()=>({...DEFAULTS,stocks:['SPY','AAPL','MSFT']});
  const client={connected:true,disconnect(){this.connected=false;},async call(name,args){calls.push({name,args});

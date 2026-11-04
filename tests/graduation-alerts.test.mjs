@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {strategyGraduation} from '../graduation.mjs';
-import {DEFAULTS} from '../engine.mjs';
-import {AlertTracker,alertEligibility} from '../alert-rules.mjs';
+import {strategyGraduation} from '../modules/graduation.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {AlertTracker,alertEligibility} from '../modules/alert-rules.mjs';
 const rows=(n,value=.2)=>Array.from({length:n},(_,i)=>({id:'s'+i,key:'k'+i,profile:'p',market:'stocks',strategy:'ema-cross',strategies:['ema-cross','vwap'],tf:3,entryAt:i*600000,closedAt:i*600000+180000,cohort:'confirmed',realizedR:typeof value==='function'?value(i):value}));
 const grade=(r,extra={})=>strategyGraduation(r,{profile:'p',...extra})['stocks|ema-cross|3'];
 test('Graduation requires 100 initial and the NEXT 100 fresh trades, positive R and a positive 95% lower bound',()=>{

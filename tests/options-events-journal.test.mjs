@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS} from '../engine.mjs';
-import {eventCheck,eastern,contextGate} from '../market-context.mjs';
-import {optionReality} from '../option-plan.mjs';
-import {observeOptionOutcomes} from '../option-outcomes.mjs';
-import {journalComparison} from '../journal-review.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {eventCheck,eastern,contextGate} from '../modules/market-context.mjs';
+import {optionReality} from '../modules/option-plan.mjs';
+import {observeOptionOutcomes} from '../modules/option-outcomes.mjs';
+import {journalComparison} from '../modules/journal-review.mjs';
 const now=Date.parse('2026-10-08T14:00Z');
 test('Existing event filter supports full-day/window CPI/FOMC, configurable earnings days and first five minutes',()=>{
  const ctx={macro:{CPI:{checkedAt:now,events:[{date:'2026-10-08',time:eastern('2026-10-08',8,30)}]},FOMC:{checkedAt:now,events:[{date:'2026-10-08',time:null}]}},earnings:{SPY:{checkedAt:now,events:[{date:'2026-10-10'}]}}};

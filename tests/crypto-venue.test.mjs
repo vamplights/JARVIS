@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cryptoVenueName,cryptoVenueFields,applyCryptoVenuePreset} from '../ui-forms.mjs';
-import {DEFAULTS} from '../engine.mjs';
-import {validateSettings} from '../settings.mjs';
-import {settingsProfile} from '../stats.mjs';
+import {cryptoVenueName,cryptoVenueFields,applyCryptoVenuePreset} from '../modules/ui-forms.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {validateSettings} from '../modules/settings.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
 test('Crypto dropdown supports both venues and legacy names without changing saved fees',()=>{
  const s={cryptoVenue:'Coinbase Advanced',costs:{crypto:{feeBps:37}}};
  const html=cryptoVenueFields(s,(label,name,choices,value)=>JSON.stringify({label,name,choices,value}));

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-import {DEFAULTS,mergeSignals,aggregate,backtest} from '../engine.mjs';import {walkForward} from '../walk-forward.mjs';import {PaperLedger,performance} from '../paper-ledger.mjs';
-import {optionQuote} from '../robinhood-live.mjs';
+import {DEFAULTS,mergeSignals,aggregate,backtest} from '../modules/engine.mjs';import {walkForward} from '../modules/walk-forward.mjs';import {PaperLedger,performance} from '../modules/paper-ledger.mjs';
+import {optionQuote} from '../modules/robinhood-live.mjs';
 const now=Date.parse('2026-10-12T17:00:00Z'),settings={...structuredClone(DEFAULTS),capital:10000,risk:100,costs:{stocks:{feeBps:1,slippageBps:0,spreadBps:0},crypto:{feeBps:1,slippageBps:0,spreadBps:0}},minRR:1,cryptoAfterHours:false};
 test('Confirmed thesis cannot repaint and invalidation remains terminal after expiry',()=>{const s={id:'a',symbol:'A',tf:1,confirmedAt:now,stop:99,price:100,target:102,dir:1,status:'CONFIRMED'};const frozen=mergeSignals([s],[{...s,stop:95,price:110}],now+1000)[0];assert.equal(frozen.stop,99);assert.equal(frozen.price,100);assert.equal(mergeSignals([{...s,status:'INVALIDATED'}],[],now+999999)[0].status,'INVALIDATED');});
 test('Aggregation sorts inputs and refuses unsupported source/timeframe combinations',()=>{const b=[{time:60,open:2,high:3,low:1,close:2,volume:1},{time:0,open:1,high:2,low:1,close:2,volume:1}];assert.equal(aggregate(b,2,60,120000)[0].open,1);assert.throws(()=>aggregate(b,1,300),/multiple/);});

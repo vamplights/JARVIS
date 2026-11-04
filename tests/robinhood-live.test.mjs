@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RobinhoodClient,RobinhoodError,readRPC} from '../robinhood-client.mjs';
-import {RobinhoodLive,optionQuote,historyStart} from '../robinhood-live.mjs';
-import {DEFAULTS} from '../engine.mjs';
-import {suggestedExpiry} from '../option-plan.mjs';
+import {RobinhoodClient,RobinhoodError,readRPC} from '../modules/robinhood-client.mjs';
+import {RobinhoodLive,optionQuote,historyStart} from '../modules/robinhood-live.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {suggestedExpiry} from '../modules/option-plan.mjs';
 const origin='http://127.0.0.1:8765',metadata={issuer:'https://agent.robinhood.com/mcp/trading',authorization_endpoint:'https://robinhood.com/oauth',token_endpoint:'https://api.robinhood.com/oauth2/token/',registration_endpoint:'https://agent.robinhood.com/oauth/trading/register',code_challenge_methods_supported:['S256']};
 const response=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 test('Watchlist expiry warmup is independent of news and restores dates across instances',async()=>{const symbols=['SPY','AAPL','AMZN'],expiry=new Date(Date.now()+14*86400000).toISOString().slice(0,10),calls=[];let saved=[];const client={connected:true,async call(name,args){assert.equal(name,'get_option_chains');calls.push(args.underlying_symbol);return {chains:[{id:args.underlying_symbol,expiration_dates:[expiry]}]};}},settings=()=>({...DEFAULTS,stocks:symbols});const first=new RobinhoodLive({client,settings,saveChains:rows=>saved=structuredClone(rows)});await first.warmChains();assert.deepEqual(calls,symbols);for(const symbol of symbols)assert.equal(suggestedExpiry(first.chains.get(symbol)).expiration,expiry);const restored=new RobinhoodLive({client,settings,loadChains:()=>saved});await restored.warmChains();assert.equal(calls.length,3);assert.equal(restored.options.contracts.length,0);});

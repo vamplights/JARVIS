@@ -1,55 +1,98 @@
-# JARVIS 1.5
+<p align="center">
+  <img src="jarvis-logo.svg" width="80" height="80" alt="JARVIS logo">
+</p>
 
-Local market research, signal cards, Top Picks and paper trading. No real order routes.
+# JARVIS
 
-## First setup on either computer
+A local workspace for stock, options, and crypto research. Follow the market, review signal cards and Top Picks, and track ideas through paper trading in one browser dashboard.
 
-1. Install Node.js 22 or newer and Git.
-2. Clone this **private repository** into a normal local folder on that computer.
-3. Run **Start JARVIS.cmd** on Windows or double-click **Start JARVIS.command** on macOS. You can also run `npm start` in the project folder.
-4. Connect your own Robinhood session in System Status. Authorization stays on that computer.
+JARVIS runs on your computer with Node.js. It combines live and historical market data with strategy evaluation, charts, journals, and local learning tools. It does not route real orders.
 
-No npm packages are required. First start copies the clean configuration from `config/settings.shared.json` into `data/journal-settings.json` with an empty journal. It never overwrites an existing journal or settings file. Stock/crypto data and models build locally; internet is needed for market feeds. If you start with `node server.mjs` directly, run `node scripts/init-settings.mjs` first to seed the included configuration.
+## 🔎 Inside the workspace
 
-On macOS, the launcher opens the dashboard in your browser. Keep its Terminal window open while using JARVIS; press Control-C to stop it. If macOS reports a permission error, run `chmod +x "Start JARVIS.command"` in the project folder once. Node.js 22 or newer must be installed. Robinhood sign-in stays in memory on Mac, so reconnect after restarting JARVIS.
+- **Market charts:** explore stocks and crypto with timeframe controls, EMA and VWAP overlays, and visible feed status. An optional Alpaca connection supplies stock chart data; crypto charts use the existing Coinbase feed.
+- **Signals and Top Picks:** review completed-candle setups, entry plans, risk levels, source freshness, and model estimates. Setup scores and estimated win percentages are presented separately; preliminary estimates are not evidence of a profitable edge.
+- **Options research:** inspect contract plans and available quotes alongside stock setups, with a separate manual option sandbox for testing ideas.
+- **Paper trading and review:** follow simulated entries and exits, compare outcomes, and keep a local journal. Research and model results depend on the available data and the settings used to collect them.
+- **Chart Pattern Analysis:** turn on an independent research workspace for formations, chart drawings, detection evidence, and historical analysis records. It defaults to **OFF** and does not feed signals, Top Picks, notifications, paper trades, or model training.
 
-## Move work between laptop and PC
+Available history and live coverage depend on the connected provider. Source and freshness labels matter: delayed, imported, or fallback data should be read in that context.
 
-Before editing on either computer:
+## 🚀 Get started
 
-```powershell
+Install **Node.js 22 or newer** and **Git**, then clone this repository into a local folder. JARVIS uses built-in Node APIs and a bundled chart renderer; no npm package installation is required.
+
+| Platform | Launch |
+| --- | --- |
+| Windows | Double-click `Start JARVIS.cmd` |
+| macOS | Double-click `Start JARVIS.command` |
+| Terminal | Run `npm start` from the project folder |
+
+Open [http://127.0.0.1:8765](http://127.0.0.1:8765) if the dashboard does not open automatically. The server listens on the local loopback address; market feeds need an internet connection.
+
+On first start, JARVIS copies [the shared configuration](config/settings.shared.json) into `data/journal-settings.json` with an empty journal. Existing settings and journals are preserved. This template supplies the starting watchlists and risk preferences, so each installation can then be configured independently.
+
+Connect your own Robinhood session in **System Status** for the associated live data. See the [chart guide](docs/LIVE-STOCK-CHART.md) for the optional Alpaca chart connection and indicator controls.
+
+On macOS, keep the launcher's Terminal window open while using JARVIS and press **Control-C** to stop it. If the launcher reports a permission error, run this once from the project folder:
+
+```sh
+chmod +x "Start JARVIS.command"
+```
+
+Robinhood authorization stays in memory on macOS, so reconnect after restarting JARVIS. On Windows, saved authorization uses Windows account encryption and belongs to that account on that computer.
+
+If you launch with `node server.mjs` directly, run `node scripts/init-settings.mjs` first to seed the included configuration. `npm start` and the launchers already perform that step.
+
+## 🔒 Your data stays with your installation
+
+The `data/` directory is ignored by Git. It holds local credentials, account snapshots, journals, paper trades, reports, market history, model files, and logs. Those files do not sync through GitHub. Browser layout preferences and notification history also stay local to each browser.
+
+Keep backups of the local data you want to retain, and do not force-add `data/` to Git. The versioned [shared settings](config/settings.shared.json) are a starting template, not a backup of your installation. Keep tokens, contact details, and private feed URLs out of that file.
+
+To move an existing installation into this checkout, stop JARVIS, back up its data, and copy its `data/` folder into the checkout while both instances are stopped. Stop any other JARVIS instance using the same port before launching. Sign in independently on each computer rather than copying Windows-encrypted authorization between machines.
+
+## 🛠️ Develop and sync between computers
+
+Pull the latest code before editing:
+
+```sh
 git pull --ff-only
 ```
 
-After editing and testing:
+After making changes, run the suite and review what will be committed:
 
-```powershell
-node --test
-git add .
+```sh
+npm test
+git status
+git diff
+git add <files-you-changed>
 git commit -m "Describe the change"
 git push
 ```
 
-Finish committing and pushing on one computer before switching to the other. If Git reports local changes or divergent branches, resolve them before pulling; avoid force pushes. Restart JARVIS after pulling code changes.
+Finish committing and pushing on one computer before switching to another. Resolve local changes or divergent branches before pulling, and restart JARVIS after updating its code. Each computer keeps its own runtime data and local settings.
 
-`data/` is deliberately ignored: Robinhood credentials, account snapshots, journals, paper trades, reports, model weights, history and logs do **not** sync through GitHub. Each computer maintains its own local state. Do not manually force-add that folder. Browser layout and notification history are local to each browser.
+## 📁 Project map
 
-`config/settings.shared.json` is a clean, versioned starting configuration, including watchlists and risk preferences. Existing installations keep their local settings when code is updated. Edit the template deliberately if you want new installations to use different settings; never put contact details, tokens or private feed URLs there.
+| Path | Purpose |
+| --- | --- |
+| [server.mjs](server.mjs) | Local HTTP API, market collectors, and application coordination |
+| [modules/](modules/) | Signal engines, feeds, chart tools, paper trading, learning, and browser components |
+| [app.js](app.js), [index.html](index.html), [style.css](style.css) | Browser entry point, page shell, and styles |
+| [config/](config/) | Versioned starting configuration |
+| [scripts/](scripts/) | Launcher support, initialization, maintenance, and optional Windows service tools |
+| [tests/](tests/) | Node test suite, run with `npm test` |
+| [vendor/](vendor/) | Bundled third-party browser assets and their notices |
+| [docs/](docs/) | Feature guides, validation notes, and development handoff |
+| `data/`, `work/` | Ignored local runtime files and development output |
 
-## Project map
+## 📚 Guides and development notes
 
-- `server.mjs`: local API and collectors.
-- `engine.mjs`, strategy modules: closed-candle signals and configured market costs.
-- `app.js`, `card-view.mjs`, `style.css`: browser interface.
-- `tests/`: regression suite; run `node --test` from this folder.
-- `scripts/`: initialization, history, analysis and optional Windows service tools.
-- `docs/`: operation and calendar notes.
-- `HANDOFF.md`: concise context for continuing development on another computer.
-
-The Desktop installation from which this code was prepared remains separate. Run and edit this Git checkout when developing so your changes can be committed and pushed. Keep its runtime data local.
-
-## Switching from an existing installation
-
-Chart Pattern Analysis is a separate, default-OFF research mode. See [its usage guide, coverage matrix, validation results, and limitations](docs/CHART-PATTERN-ANALYSIS.md). It never enters the actionable-signal, paper-trading, notification, or model-training pipeline.
-
-Stop any currently running JARVIS instance before starting this checkout on the same port. To keep that computer's existing local history, make a backup and copy its `data` folder into this checkout while JARVIS is stopped. That folder remains ignored by Git. Windows-encrypted Robinhood authorization is tied to the Windows account; sign in independently on the laptop rather than copying authorization between computers.
+- [Chart controls, feeds, EMA, and VWAP](docs/LIVE-STOCK-CHART.md)
+- [Chart Pattern Analysis: usage, coverage, validation, and limitations](docs/CHART-PATTERN-ANALYSIS.md)
+- [EMA9 + VWAP strategy and its dedicated forward paper test](docs/EMA9-VWAP-STRATEGY.md)
+- [Market calendar sources](docs/CALENDAR-SOURCES.md)
+- [Development handoff](docs/HANDOFF.md)
+- [Verification phases](docs/VERIFY-PHASES.md)
+- [Codex coding workflow and routing configuration](docs/CODEX-ROUTING.md)

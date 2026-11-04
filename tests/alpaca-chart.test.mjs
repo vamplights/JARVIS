@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {AlpacaChartFeed,alpacaBar,stockSymbol} from '../alpaca-chart.mjs';import {chartBars} from '../live-chart-data.mjs';
+import {AlpacaChartFeed,alpacaBar,stockSymbol} from '../modules/alpaca-chart.mjs';import {chartBars} from '../modules/live-chart-data.mjs';
 class Socket{static sockets=[];constructor(url){this.url=url;this.handlers={};this.sent=[];Socket.sockets.push(this);}addEventListener(k,f){this.handlers[k]=f;}send(s){this.sent.push(JSON.parse(s));}close(){this.handlers.close?.();}message(rows){this.handlers.message({data:JSON.stringify(rows)});}}
 const row={t:'2026-10-30T14:30:00Z',o:100,h:102,l:99,c:101,v:12};
 test('Chart aggregation keeps OHLC and volume across timeframe boundaries without changing inputs',()=>{const first=alpacaBar(row),second={...first,time:first.time+60,open:101,high:104,low:100,close:103,volume:5},third={...first,time:first.time+300};const input=[third,second,first],before=structuredClone(input);const result=chartBars(input,5);assert.equal(result.length,2);assert.deepEqual(result[0],{...first,high:104,close:103,volume:17});assert.deepEqual(input,before);assert.equal(alpacaBar({...row,h:98}),null);assert.throws(()=>stockSymbol('../secret'));});

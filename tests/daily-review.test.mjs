@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {DEFAULTS} from '../engine.mjs';
-import {ModelReview} from '../model-review.mjs';
-import {settingsProfile} from '../stats.mjs';
-import {modelReviewPanel,reportCardView,reliabilityChart} from '../model-view.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {ModelReview} from '../modules/model-review.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
+import {modelReviewPanel,reportCardView,reliabilityChart} from '../modules/model-view.mjs';
 test('Daily cycle refreshes history, resolves outcomes, retrains, validates and saves viewable report cards with honest empty samples',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-review-'));try{
   const steps=[],settings=structuredClone(DEFAULTS),learning={busy:false,error:null,records:{runs:[]},tick:async()=>steps.push('replay')},paper={data:{observations:[],signals:[{source:'Yahoo Finance',fallback:true}],alerts:[]}},history={status:{downloads:{SPY:{bars:0,partial:true}}},refreshHistory:async()=>steps.push('history')},review=new ModelReview({dir,settings:()=>settings,learning,paper,history,journal:()=>[{id:'j',decision:'taken',symbol:'SPY',signalId:'never-alerted',time:new Date().toISOString()}],resolve:async()=>steps.push('resolve')});

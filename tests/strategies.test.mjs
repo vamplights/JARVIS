@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,evaluate,ema,backtest,mergeSignals} from '../engine.mjs';
+import {DEFAULTS,evaluate,ema,backtest,mergeSignals} from '../modules/engine.mjs';
 const relaxed={...structuredClone(DEFAULTS),strictContinuations:false,cryptoAfterHours:false,strategyFrames:Object.fromEntries(Object.keys(DEFAULTS.strategyFrames).map(k=>[k,[1,3,5]])),filters:{trend:false,volume:false,chop:false,vwap:false,market:false,spread:false},minScore:0,minRR:.1,maxExtension:20,maxStopATR:20,costs:{stocks:{feeBps:0,slippageBps:0,spreadBps:0},crypto:{feeBps:0,slippageBps:0,spreadBps:0}},maxTrades:100};
 const start=Date.parse('2026-10-08T00:00:00Z')/1000;
 const bar=(i,c,o=c-.01,h=c+.2,l=c-.2)=>({time:start+i*300,open:o,high:h,low:l,close:c,volume:100});

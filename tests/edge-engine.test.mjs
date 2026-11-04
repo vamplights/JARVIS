@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,RULES,marketCosts,roundTripCost,rewardMetrics,positionSize,migrateSettings,stopFloor,stockEntryBlocked,applyGates,riskState,adx,evaluate,backtest} from '../engine.mjs';
-import {validateSettings} from '../settings.mjs';
+import {DEFAULTS,RULES,marketCosts,roundTripCost,rewardMetrics,positionSize,migrateSettings,stopFloor,stockEntryBlocked,applyGates,riskState,adx,evaluate,backtest} from '../modules/engine.mjs';
+import {validateSettings} from '../modules/settings.mjs';
 const zero={stocks:{feeBps:0,slippageBps:0,spreadBps:0},crypto:{feeBps:0,slippageBps:0,spreadBps:0}};
 const permissive={...structuredClone(DEFAULTS),costs:zero,cryptoAfterHours:false,stockNoEntry:[],strategyFrames:Object.fromEntries(Object.keys(RULES).map(k=>[k,[1,3,5]])),filters:{confirmation:false,trend:false,volume:false,chop:false,vwap:false,market:false,spread:false},minScore:0,minRR:.1,maxExtension:20,maxStopATR:20,maxTrades:100};
 test('SPY 3m 25bps stop and 2R target have more than 1.5R after stock costs',()=>{

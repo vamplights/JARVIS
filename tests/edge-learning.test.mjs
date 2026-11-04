@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {DEFAULTS} from '../engine.mjs';
-import {completedSessions,SessionLearning} from '../intelligence.mjs';
-import {walkForward} from '../walk-forward.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {completedSessions,SessionLearning} from '../modules/intelligence.mjs';
+import {walkForward} from '../modules/walk-forward.mjs';
 const day=86400,start=Math.floor(Date.now()/86400000)*day-25*day;
 const sessionBars=(begin,base=300,count=288)=>Array.from({length:count},(_,i)=>({time:begin+i*base,open:100,high:101,low:99,close:100,volume:1,complete:true}));
 test('Learning selects the newest 20 full sessions, excludes unfinished days and refuses gaps',()=>{

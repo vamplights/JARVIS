@@ -1,6 +1,6 @@
 $ErrorActionPreference='Stop'
 $jarvisRoot=Split-Path $PSScriptRoot -Parent
-. (Join-Path $jarvisRoot 'Get-JarvisNode.ps1')
+. (Join-Path $jarvisRoot 'scripts/Get-JarvisNode.ps1')
 $jarvisNode=Get-JarvisNode
 $env:JARVIS_PORT=[string](Get-JarvisPort)
 $jarvisProcess=$null

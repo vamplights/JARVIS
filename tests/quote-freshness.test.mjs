@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CoinbaseFeed} from '../feed.mjs';
-import {selectMarketAsset,sourceGate} from '../source-integrity.mjs';
-import {displayStatus} from '../signal-filters.mjs';
+import {CoinbaseFeed} from '../modules/feed.mjs';
+import {selectMarketAsset,sourceGate} from '../modules/source-integrity.mjs';
+import {displayStatus} from '../modules/signal-filters.mjs';
 class Socket extends EventTarget{send(){} close(){}}
 function message(feed,channel,sequence_num,events=[]){feed.ws.dispatchEvent(new MessageEvent('message',{data:JSON.stringify({channel,sequence_num,timestamp:new Date().toISOString(),events})}));}
 test('Interleaved Advanced Trade socket sequences do not falsely enter recovery',()=>{

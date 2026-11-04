@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {FEATURE_NAMES,featureVector,signalFeatures,assertCausalFeatures,fitMarketModel,estimateProfit,collectModelSamples,brierScore,meanInterval90} from '../trend-model.mjs';
+import {FEATURE_NAMES,featureVector,signalFeatures,assertCausalFeatures,fitMarketModel,estimateProfit,collectModelSamples,brierScore,meanInterval90} from '../modules/trend-model.mjs';
 const start=Date.parse('2026-07-01T00:00Z');
 const feature=(time,win)=>({asOf:time,rvol:win?3:.5,adx:win?40:10,efficiency:win?.8:.2,extension:.2,stopATR:1,netRR:1.8,trendAlignment:true,higherAlignment:win,dir:1,tf:5,etHour:10,confluenceCount:win?2:1,strategies:['ema-cross']});
 const samples=market=>Array.from({length:32*30},(_,i)=>{const day=Math.floor(i/30),time=start+day*86400000+i%30*1800000,win=i%2===0,features=feature(time,win);return {id:'s'+i,symbol:market==='stocks'?'SPY':'BTC-USD',strategy:'ema-cross',strategies:['ema-cross'],market,tf:5,time,featureTime:time,candleClose:time,closedAt:time+300000,features,x:featureVector(features,'ema-cross'),y:+win,realizedR:win?(i%4===0?.25:1.5):-.8,source:'historical replay'};});

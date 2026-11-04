@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {DEFAULTS} from '../engine.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 test('Server migrates old settings atomically with a backup, preserves journal and frozen levels, and flags strategy migration explicitly',async()=>{
  for(const flagged of [false,true]){

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notificationCategory} from '../signal-view.mjs';
+import {notificationCategory} from '../modules/signal-view.mjs';
 test('Notification headers classify crypto, stock and actual option plans',()=>{
  assert.equal(notificationCategory({market:'crypto',symbol:'BTC-USD'}),'Crypto');
  assert.equal(notificationCategory({market:'stocks',symbol:'SPY'}),'Stock');

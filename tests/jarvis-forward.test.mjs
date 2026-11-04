@@ -1,12 +1,12 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';
-import {createJarvisPaper} from '../jarvis-paper-core.mjs';import {JarvisForward,confirmedForwardEligible} from '../jarvis-forward.mjs';import {DEFAULTS,migrateSettings} from '../engine.mjs';import {settingsProfile} from '../stats.mjs';import {collectModelSamples} from '../trend-model.mjs';import {ManualOptionSandbox} from '../manual-sandbox.mjs';
+import {createJarvisPaper} from '../modules/jarvis-paper-core.mjs';import {JarvisForward,confirmedForwardEligible} from '../modules/jarvis-forward.mjs';import {DEFAULTS,migrateSettings} from '../modules/engine.mjs';import {settingsProfile} from '../modules/stats.mjs';import {collectModelSamples} from '../modules/trend-model.mjs';import {ManualOptionSandbox} from '../modules/manual-sandbox.mjs';
 const now=Date.parse('2026-10-13T14:00:30Z'),config=()=>({...structuredClone(DEFAULTS),forwardPaperVersion:1,forwardExitMode:'2R',includeFallbackTraining:true});
 const signal=(extra={})=>({id:'live',symbol:'SPY',market:'stocks',strategy:'ema-cross',strategies:['ema-cross'],tf:1,dir:1,price:100,stop:99,target:100.3,atr:1,status:'CONFIRMED',confirmedAt:now-30000,source:'test',score:80,rvol:2,adx:30,efficiency:.6,extension:.1,stopATR:1,netRR:.2,trendAlignment:true,higherAlignment:true,profitEstimate:{probability:.01,status:'ready'},...extra});
 const bar=(time,o=100,h=100.3,l=99.7,c=100)=>({time:time/1000,open:o,high:h,low:l,close:c,volume:1,complete:true});
 const assets=(bars=[],extra={})=>({SPY:{symbol:'SPY',market:'stocks',base:60,source:'test',bars,quote:{price:100,time:now+1000},...extra}});
 
 test('The port retains Jarvis’s algorithm body verbatim apart from module dependency/export wiring',()=>{
- const original=fs.readFileSync(new URL('../docs/jarvis-paper-original.txt',import.meta.url),'utf8'),body=original.split(/\r?\n/).filter(l=>!l.startsWith('import ')).join('\n').replaceAll('export function ','function '),port=fs.readFileSync(new URL('../jarvis-paper-core.mjs',import.meta.url),'utf8');assert.ok(port.replaceAll('\r\n','\n').includes(body.trimEnd()));
+ const original=fs.readFileSync(new URL('../docs/jarvis-paper-original.txt',import.meta.url),'utf8'),body=original.split(/\r?\n/).filter(l=>!l.startsWith('import ')).join('\n').replaceAll('export function ','function '),port=fs.readFileSync(new URL('../modules/jarvis-paper-core.mjs',import.meta.url),'utf8');assert.ok(port.replaceAll('\r\n','\n').includes(body.trimEnd()));
  const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');assert.ok(!app.includes('autoPaperPolicy'));assert.ok(!app.includes("field('Auto-paper minimum profit probability"));
 });
 test('Original Jarvis core matches its long/short stop-first fixtures and 3000-record cap',()=>{

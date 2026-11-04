@@ -1,9 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-import {ManualOptionSandbox,sandboxPremium} from '../manual-sandbox.mjs';
-import {PaperLedger} from '../paper-ledger.mjs';import {DEFAULTS} from '../engine.mjs';
-import {ModelReview} from '../model-review.mjs';import {settingsProfile} from '../stats.mjs';
-import {paperOptionButton} from '../option-paper-view.mjs';import {paperPanel} from '../beta-view.mjs';
+import {ManualOptionSandbox,sandboxPremium} from '../modules/manual-sandbox.mjs';
+import {PaperLedger} from '../modules/paper-ledger.mjs';import {DEFAULTS} from '../modules/engine.mjs';
+import {ModelReview} from '../modules/model-review.mjs';import {settingsProfile} from '../modules/stats.mjs';
+import {paperOptionButton} from '../modules/option-paper-view.mjs';import {paperPanel} from '../modules/beta-view.mjs';
 const now=Date.parse('2026-10-11T07:00Z'); // Sunday, outside the stock session.
 const signal=()=>({id:'SPY-click',market:'stocks',symbol:'SPY',strategy:'vwap',tf:3,dir:1,status:'INVALIDATED',legacyProfile:true,replay:true,conflicted:true,confirmedAt:now-86400000,price:100,stop:99,target:102,optionPlan:{reality:{available:false,blocked:true,reason:'No liquid contract'}}});
 const settings=()=>({...structuredClone(DEFAULTS),capital:0,risk:0,maxTrades:0,maxLosses:0});

@@ -1,8 +1,8 @@
 // Isolated offline fixture server. Never reads or writes the user's data directory.
 import fs from 'node:fs';
 import path from 'node:path';
-import {DEFAULTS} from '../engine.mjs';
-import {ChartPatternStore} from '../chart-pattern-store.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {ChartPatternStore} from '../modules/chart-pattern-store.mjs';
 import {S,boundary} from '../tests/chart-pattern-fixtures.mjs';
 const dir=path.resolve('work/chart-pattern-ui-fixture');fs.mkdirSync(dir,{recursive:true});
 process.env.JARVIS_DATA_DIR=dir;process.env.JARVIS_PORT='18791';process.env.JARVIS_OFFLINE='1';

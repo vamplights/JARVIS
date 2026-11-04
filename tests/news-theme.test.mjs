@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {THEMES} from '../visual-settings.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {THEMES} from '../modules/visual-settings.mjs';
 const css=fs.readFileSync(new URL('../style.css',import.meta.url),'utf8');
 const rule=selector=>css.match(new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\{([^}]+)\\}'))?.[1];
 const lum=h=>{h=h.replace('#','');if(h.length===3)h=[...h].map(c=>c+c).join('');const v=h.match(/../g).map(c=>parseInt(c,16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);return v[0]*.2126+v[1]*.7152+v[2]*.0722;};

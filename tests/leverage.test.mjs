@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cryptoLeveragePlan} from '../leverage.mjs';
-import {DEFAULTS} from '../engine.mjs';
+import {cryptoLeveragePlan} from '../modules/leverage.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
 const now=Date.now(),settings={...DEFAULTS,capital:500,risk:15,costs:{stocks:{feeBps:0,slippageBps:0,spreadBps:0},crypto:{feeBps:0,slippageBps:0,spreadBps:0}}},signal={symbol:'BTC-USD',market:'crypto',price:100,stop:99,dir:1,score:90,status:'CONFIRMED',replay:false};
 const product={productId:'TEST-BTC',unitSize:1,minContracts:1,contractIncrement:1,priceTick:1,maxContracts:5000,sessionOpen:true,quote:{price:100,time:now},fetchedAt:now,intraday:{long:.1,short:.1},overnight:{long:.2,short:.25},fundingRate:0};
 const data={products:{'BTC-USD':product},error:null};

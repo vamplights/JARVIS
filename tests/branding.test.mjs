@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {validateSettings} from '../settings.mjs';import {DEFAULTS,migrateSettings} from '../engine.mjs';import {settingsProfile} from '../stats.mjs';
+import {validateSettings} from '../modules/settings.mjs';import {DEFAULTS,migrateSettings} from '../modules/engine.mjs';import {settingsProfile} from '../modules/stats.mjs';
 
 test('Sidebar subtitle accepts a bounded editable line, survives migration and leaves trading settings intact',()=>{
  const before=structuredClone(DEFAULTS),after=validateSettings({sidebarSubtitle:'  Sample market desk  '},before);

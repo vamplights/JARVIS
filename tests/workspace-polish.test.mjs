@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {actionableSignals} from '../signal-filters.mjs';
-import {workspacePreferences,clampSidebarWidth,installSidebarResize} from '../panel-disclosures.mjs';
+import {actionableSignals} from '../modules/signal-filters.mjs';
+import {workspacePreferences,clampSidebarWidth,installSidebarResize} from '../modules/panel-disclosures.mjs';
 const now=Date.parse('2026-10-15T15:00:00Z');
 const signal=(extra={})=>({id:'SPY-1',symbol:'SPY',market:'stocks',status:'CONFIRMED',confirmedAt:now-60000,tf:3,quoteTime:now-1000,entryQualified:true,...extra});
 const opts={settings:{stockStaleSeconds:150,staleSeconds:30},context:{now},session:{stocks:true,crypto:true}};

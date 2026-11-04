@@ -1,0 +1,215 @@
+{
+  "date_local": "2026-11-01",
+  "timezone": "America/Los_Angeles",
+  "desktop_runtime": "0.165.0-alpha.1.2",
+  "separate_cli": "0.163.0",
+  "primary_session": {
+    "id": "01a19ab4-6ac6-7140-9a64-7fa0eb6584ac",
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "note": "Existing parent stayed Astra/high; new project default is Luna/xhigh."
+  },
+  "native_config": {
+    "desktop_passed": true,
+    "desktop_checks": 47,
+    "cli_passed": true,
+    "cli_checks": 47,
+    "effective": {
+      "model": "gpt-6-luna",
+      "model_reasoning_effort": "xhigh",
+      "agents": {
+        "enabled": true,
+        "default_subagent_model": "gpt-6-luna",
+        "default_subagent_reasoning_effort": "xhigh",
+        "max_concurrent_threads_per_session": 4
+      }
+    },
+    "project_layer_active": true
+  },
+  "native_prompt_discovery": {
+    "JARVIS coding workflow": true,
+    "Lowest-cost implementation": true,
+    "UI and visual implementation": true,
+    "General engineering": true,
+    "Reserved for hard architecture": true
+  },
+  "execution_evidence": {
+    "source": "Read-only local Codex threads table plus per-worker turn_context records; not worker self-reports.",
+    "workers": [
+      {
+        "id": "01a19abc-d386-73f0-b24b-8207177e92f4",
+        "agent_path": "/root/astra_handoff",
+        "model": "gpt-6-astra",
+        "reasoning_effort": "high",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6-astra",
+            "effort": "high"
+          }
+        ],
+        "effort_constraints_passed": true
+      },
+      {
+        "id": "01a19aba-0482-7390-8443-4da9912c0ab6",
+        "agent_path": "/root/routing_smoke",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "xhigh",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6-luna",
+            "effort": "xhigh"
+          }
+        ],
+        "effort_constraints_passed": true
+      },
+      {
+        "id": "01a19ab7-a129-7303-9c9b-246e5c1d1ce0",
+        "agent_path": "/root/sol_validation",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "effort_constraints_passed": true
+      },
+      {
+        "id": "01a19abb-0d3b-7c92-8915-11bf4a5a2f32",
+        "agent_path": "/root/routing_smoke/smoke_ui",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "high",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6.1-terra",
+            "effort": "high"
+          }
+        ],
+        "effort_constraints_passed": true
+      },
+      {
+        "id": "01a19aba-99ef-7f12-97dd-83d2fdbe4782",
+        "agent_path": "/root/routing_smoke/smoke_moderate",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "medium",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          }
+        ],
+        "effort_constraints_passed": true
+      },
+      {
+        "id": "01a19aba-3cf4-7391-bcde-8998fe590942",
+        "agent_path": "/root/routing_smoke/smoke_simple",
+        "model": "gpt-6-luna",
+        "reasoning_effort": "xhigh",
+        "turn_context_pairs": [
+          {
+            "model": "gpt-6-luna",
+            "effort": "xhigh"
+          }
+        ],
+        "effort_constraints_passed": true
+      }
+    ]
+  },
+  "automatic_routing_smoke": {
+    "results": [
+      {
+        "id": "simple",
+        "route": "luna",
+        "reason": "Small, isolated function fix with low regression risk.",
+        "selected_model": "gpt-6-luna",
+        "effort": "xhigh",
+        "worker_path": "/root/routing_smoke/smoke_simple",
+        "result": "Null and undefined return empty string; other values remain stringified and trimmed.",
+        "tests": "node --test work/codex-routing/smoke/simple.test.mjs: 1 passed, 0 failed."
+      },
+      {
+        "id": "moderate",
+        "route": "sol",
+        "reason": "Contained two-module API behavior with bounded retry logic and validation.",
+        "selected_model": "gpt-6.1-sol",
+        "effort": "medium",
+        "worker_path": "/root/routing_smoke/smoke_moderate",
+        "result": "Validates maxAttempts before transport; retries 429 and 5xx within the total attempt bound; preserves JSON success and HTTP errors.",
+        "tests": "node --test work/codex-routing/smoke/moderate.test.mjs: 3 passed, 0 failed."
+      },
+      {
+        "id": "ui",
+        "route": "terra",
+        "reason": "Responsive layout and accessibility styling require visual judgment.",
+        "selected_model": "gpt-6.1-terra",
+        "effort": "high",
+        "worker_path": "/root/routing_smoke/smoke_ui",
+        "result": "Two-column wide layout, narrow single column, spacing, readable colors, wrapping, and focus outlines added. Static CSS inspection at 320px indicates 288px content width and no fixed-width tracks. Actual browser rendering was not observed: browser policy blocked the local file URL and prohibits workarounds.",
+        "tests": "CSS and markup inspected; no automated UI test available."
+      }
+    ],
+    "simulated_recovery_decisions": [
+      {
+        "scenario": "Synthetic dependency ENOENT",
+        "classification": "environment",
+        "decision": "Address the missing prerequisite if authorized; otherwise report the blocker. Do not escalate model capability."
+      },
+      {
+        "scenario": "Ambiguous required output",
+        "classification": "requirements",
+        "decision": "Ask for the missing requirement or use a safe documented assumption when one is reasonable."
+      },
+      {
+        "scenario": "Repeated incorrect algorithm with a concrete failing example",
+        "classification": "capability",
+        "decision": "Preserve the failing example and diagnosis, then escalate one route from Luna to Sol with a concise handoff. No worker was spawned for this simulation."
+      }
+    ],
+    "runtime_identity": "Requested model and effort recorded; runtime metadata verification is delegated to the parent."
+  },
+  "astra_handoff": {
+    "kind": "Synthetic capability-failure handoff; no real cheaper-model failure claimed.",
+    "worker_path": "/root/astra_handoff",
+    "model": "gpt-6-astra",
+    "effort": "high",
+    "tests_passed": 3,
+    "tests_failed": 0,
+    "preserved_progress": "Target-only node inventory and input immutability"
+  },
+  "project_regression": {
+    "tests": 562,
+    "passed": 562,
+    "failed": 0,
+    "restricted_baseline": {
+      "passed": 559,
+      "failed": 3,
+      "cause": "localhost connection EACCES"
+    },
+    "resolution": "Same suite passed with authorized localhost access; no model escalation or app edits.",
+    "baseline_paths": 281,
+    "changed_preexisting_paths": [
+      ".gitignore"
+    ],
+    "application_files_unchanged": true
+  },
+  "limits": [
+    "Routing is instruction-driven, not a deterministic interception hook.",
+    "Fresh coordinator routing and native project loading were tested; a new user-owned desktop chat was not created.",
+    "Current tool interface used explicit model/effort spawning; custom role discovery was verified separately.",
+    "UI fixture passed static inspection; browser policy blocked local-file rendering.",
+    "Recovery decisions and Astra continuation used simulations; natural capability-triggered escalation is unverified.",
+    "No measured dollar savings or global cost optimality established.",
+    "Runtime metadata confirms configured execution; no independent backend model attestation."
+  ],
+  "sha256": {
+    "AGENTS.md": "09e360210e02dd38022868753c3029a38ada48fa8f1a41963634bcd18b05a698",
+    ".gitignore": "6bc44a5552edcd37abb9a3328355d0ad4c91f1b9f8431e42b36b0eeef693e4fe",
+    ".codex/config.toml": "c5005e7a39ef42d2caef4cb3b041345e6606985caf65f27c5428ee76326781cb",
+    "scripts/verify-codex-routing.py": "b1925d2692e35f209f54ffab810950d21eae799b967afa6ee68fcd153ef724c8",
+    ".codex/agents/luna.toml": "1064f658ba487bdfb4c8aef3f4390d778b9146c326c63d50bd5cfbb4f56cf039",
+    ".codex/agents/terra.toml": "48479288a13085a95c70dfb502a5dc498c82ae7f517390f41d5c62131ab4babc",
+    ".codex/agents/sol.toml": "71fd8fd3003253b7f50145dae555b207cab9ee9c1eaa71a27fb009210d6b7d42",
+    ".codex/agents/astra.toml": "e57f98380a2678aadc2898d6cf9f48946629af1238df3096849122f7aef915dc"
+  }
+}

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
-import {CredentialStore} from '../credential-store.mjs';
-import {RobinhoodClient} from '../robinhood-client.mjs';
+import {CredentialStore} from '../modules/credential-store.mjs';
+import {RobinhoodClient} from '../modules/robinhood-client.mjs';
 const origin='http://127.0.0.1:8765';
 const saved=()=>({version:1,origin,clientId:'test-client',tokens:{access:'test-access',refresh:'test-refresh',expires:Date.now()-1000}});
 function memory(){let data=saved();return {load:()=>structuredClone(data),save:v=>data=structuredClone(v),clear:()=>data=null};}

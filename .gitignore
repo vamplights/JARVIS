@@ -17,7 +17,14 @@
 /backups/
 /outputs/
 /work/
-/.codex/
+/.codex/*
+!/.codex/config.toml
+!/.codex/agents/
+/.codex/agents/*
+!/.codex/agents/luna.toml
+!/.codex/agents/terra.toml
+!/.codex/agents/sol.toml
+!/.codex/agents/astra.toml
 /.agents/
 /.vscode/
 .DS_Store

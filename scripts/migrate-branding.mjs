@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {settingsProfile} from '../stats.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
 // Rename only system identifiers. Journal text, prices, dates and outcomes stay intact.
 export function migrateBranding(dir){
  const read=name=>{try{return JSON.parse(fs.readFileSync(path.join(dir,name),'utf8'));}catch{return null;}},ledger=read('auto-paper.json'),models=read('trend-models.json');

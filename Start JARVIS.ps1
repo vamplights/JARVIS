@@ -1,6 +1,6 @@
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'Get-JarvisNode.ps1')
+. (Join-Path $PSScriptRoot 'scripts/Get-JarvisNode.ps1')
 $jarvisNode = Get-JarvisNode
 & $jarvisNode (Join-Path $PSScriptRoot 'scripts\init-settings.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Initial settings setup failed.' }
@@ -9,7 +9,7 @@ $env:JARVIS_PORT = [string]$jarvisPort
 $jarvisUrl = "http://127.0.0.1:$jarvisPort"
 $jarvisData = Join-Path $PSScriptRoot 'data'
 New-Item -ItemType Directory -Force -Path $jarvisData | Out-Null
-$jarvisHealth = Join-Path $PSScriptRoot 'health-check.mjs'
+$jarvisHealth = Join-Path $PSScriptRoot 'scripts/health-check.mjs'
 function Test-JarvisReady {
     try {
         $jarvisHealthOutput = & $jarvisNode $jarvisHealth 2>$null

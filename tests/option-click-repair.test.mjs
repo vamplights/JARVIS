@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-import {optionSignalPlan,optionPlanAvailability,optionContractIssues} from '../option-plan.mjs';
-import {optionPaperUnavailable} from '../option-paper-view.mjs';
-import {submitOptionPaperClick} from '../manual-option.mjs';
-import {PaperLedger} from '../paper-ledger.mjs';
-import {DEFAULTS} from '../engine.mjs';
-import {settingsProfile} from '../stats.mjs';
-import {strategyDetailMembers,resolveSignalDetail} from '../signal-view.mjs';
-import {displayStatus} from '../signal-filters.mjs';
-import {paperPanel} from '../beta-view.mjs';
+import {optionSignalPlan,optionPlanAvailability,optionContractIssues} from '../modules/option-plan.mjs';
+import {optionPaperUnavailable} from '../modules/option-paper-view.mjs';
+import {submitOptionPaperClick} from '../modules/manual-option.mjs';
+import {PaperLedger} from '../modules/paper-ledger.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
+import {strategyDetailMembers,resolveSignalDetail} from '../modules/signal-view.mjs';
+import {displayStatus} from '../modules/signal-filters.mjs';
+import {paperPanel} from '../modules/beta-view.mjs';
 const now=Date.parse('2026-10-12T17:00Z');
 const base=()=>({id:'clicked',market:'stocks',symbol:'SPY',strategy:'ema-cross',tf:3,dir:1,direction:'bullish',name:'EMA',score:100,status:'CONFIRMED',confirmedAt:now-1000,source:'test',price:100,stop:99,target:102,entry:[99.9,100.1],rr:2,netRR:1.9,atr:1,size:{plannedRisk:15},warnings:[],factors:[]});
 const contract=()=>({id:'verified',symbol:'SPY',expiration:'2026-10-26',type:'call',strike:100,tradability:'tradable',multiplier:100,quote:{bid:.079,ask:.08,time:now,delta:.55,theta:-.001,volume:100,openInterest:1000}});
@@ -25,7 +25,8 @@ test('Concurrent clicks share one preparation and preserve deterministic dedupli
 test('Replay, legacy cohort and disconnected signals fail before any quote load',async()=>{for(const flag of ['replay','legacyProfile','disconnected']){const x=setup();try{if(flag==='disconnected')x.live.client.connected=false;else x.signal[flag]=true;await assert.rejects(submitOptionPaperClick(x),/Replay|cohort|Connect Robinhood/);assert.equal(x.counts.load,0);assert.equal(x.paper.data.trades.length,0);}finally{x.clean();}}});
 
 test('Strategy member details use current parent gates rather than obsolete confirmed badges',()=>{const m=base(),parent={...m,id:'group',status:'STALE',confirmedAt:now-600000,members:[{...m,confirmedAt:now-600000}],quoteTime:now},views=strategyDetailMembers(parent);assert.equal(views[0].status,'STALE');assert.equal(displayStatus(views[0],{now}),'SETUP EXPIRED');assert.equal(m.status,'CONFIRMED');assert.equal(strategyDetailMembers({...parent,status:'CONFIRMED'})[0].status,'CONFIRMED');assert.equal(strategyDetailMembers({...parent,status:'WATCH'})[0].status,'WATCH');});
-test('A confirmed strategy remains inspectable after refresh removes it from the radar, with entry explicitly unavailable',()=>{const s=base(),cache=new Map([[s.id,s]]);assert.equal(resolveSignalDetail(s.id,[s],cache),s);const old=resolveSignalDetail(s.id,[],cache);assert.equal(old.inspectionOnly,true);assert.equal(old.status,'STALE');assert.equal(old.stop,s.stop);assert.match(optionPaperUnavailable(old),/Archived/);assert.equal(resolveSignalDetail('missing',[],cache),null);const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');assert.match(app,/strategy-member/);assert.match(app,/refreshStrategyNavigation\(\)/);assert.match(app,/await switchPaperTab\('manual'\)/);});
+test('A confirmed strategy remains inspectable after refresh removes it from the radar, with entry explicitly unavailable',()=>{const s=base(),cache=new Map([[s.id,s]]);assert.equal(resolveSignalDetail(s.id,[s],cache),s);const old=resolveSignalDetail(s.id,[],cache);assert.equal(old.inspectionOnly,true);assert.equal(old.status,'STALE');assert.equal(old.stop,s.stop);assert.match(optionPaperUnavailable(old),/Archived/);assert.equal(resolveSignalDetail('missing',[],cache),null);const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');assert.match(app,/strategy-member/);assert.match(app,/refreshStrategyNavigation\(\)/);});
+test('Paper trade click records the simulation in place without closing the signal dialog or navigating',()=>{const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),start=app.indexOf(' if(el.dataset.paperOption){'),end=app.indexOf('\n\n if(el.dataset.researchOptions)',start);assert.ok(start>=0&&end>start);const handler=app.slice(start,end);assert.match(handler,/api\('\/api\/paper-option'/);assert.match(handler,/manualOptionState\.set\(key,\{done:true\}\)/);assert.match(handler,/await refresh\(true\)/);assert.match(handler,/This manual paper trade is already recorded/);assert.doesNotMatch(handler,/switchPaperTab|Opening Manual paper results|\$\('#dialog'\)\.close\(\)/);});
 
 
 // Both the click orchestration and the ledger entry point must allow every live status.

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {combineSignals,cancelOpposingSignals} from '../confluence.mjs';
-import {DEFAULTS,evaluate,mergeSignals,riskState,applyGates} from '../engine.mjs';
-import {validateSettings} from '../settings.mjs';
-import {observeSignalOutcomes} from '../signal-outcomes.mjs';
-import {settingsProfile} from '../stats.mjs';
-import {sourceGate} from '../source-integrity.mjs';
-import {explainSignal,probabilityText,modelExplanation} from '../signal-view.mjs';
+import {combineSignals,cancelOpposingSignals} from '../modules/confluence.mjs';
+import {DEFAULTS,evaluate,mergeSignals,riskState,applyGates} from '../modules/engine.mjs';
+import {validateSettings} from '../modules/settings.mjs';
+import {observeSignalOutcomes} from '../modules/signal-outcomes.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
+import {sourceGate} from '../modules/source-integrity.mjs';
+import {explainSignal,probabilityText,modelExplanation} from '../modules/signal-view.mjs';
 const now=Date.parse('2026-10-08T14:00:00Z'),s={id:'one',setupKey:'cross-family',symbol:'SPY',market:'stocks',tf:3,strategy:'ema-cross',name:'EMA',dir:1,confirmedAt:now,time:now-180000,source:'Robinhood',status:'CONFIRMED',warnings:[],price:100,entry:[99.99,100.01],stop:99.75,target:100.5,rr:2,netRR:1.7,size:{size:10,plannedRisk:3,notional:1000},atr:.2,adx:25,rvol:2,efficiency:.6,extension:.1,stopATR:1.25};
 test('Same-stock same-close same-direction strategies combine once with exact conservative primary levels',()=>{
  const second={...s,id:'two',setupKey:'vwap-family',strategy:'vwap',netRR:1.8,stop:99.8};const groups=combineSignals([s,second]);assert.equal(groups.length,1);const c=groups[0];assert.deepEqual(c.strategies,['ema-cross','vwap']);assert.equal(c.confluenceCount,2);assert.equal(c.stop,s.stop);assert.equal(c.target,s.target);assert.equal(c.size.size,10);assert.equal(c.status,'CONFIRMED');assert.deepEqual(combineSignals([second,s]),groups);

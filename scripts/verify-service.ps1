@@ -6,9 +6,9 @@ $jarvisService=Get-CimInstance Win32_Service -Filter "Name='$($jarvisInstall.ser
 if ($jarvisService.StartMode -ne 'Auto' -or $jarvisService.State -ne 'Running') { throw 'Service is not automatically running.' }
 $jarvisBoot=(Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime()
 if ($jarvisBoot -le [DateTime]::Parse($jarvisInstall.installedBoot)) { throw 'No reboot since setup. Verification remains pending; run this after a planned reboot.' }
-. (Join-Path $jarvisRoot 'Get-JarvisNode.ps1')
+. (Join-Path $jarvisRoot 'scripts/Get-JarvisNode.ps1')
 $env:JARVIS_PORT=[string](Get-JarvisPort)
-& (Get-JarvisNode) (Join-Path $jarvisRoot 'health-check.mjs')
+& (Get-JarvisNode) (Join-Path $jarvisRoot 'scripts/health-check.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Local health check failed after reboot.' }
 $jarvisInstall.rebootVerified=$true
 $jarvisInstall | Add-Member -NotePropertyName verifiedAt -NotePropertyValue ([DateTime]::UtcNow.ToString('o')) -Force

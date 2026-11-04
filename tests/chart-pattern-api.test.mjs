@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {DEFAULTS} from '../engine.mjs';
+import {DEFAULTS} from '../modules/engine.mjs';
 import {S,boundary} from './chart-pattern-fixtures.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 test('Offline API mode settings/history persist separately; strategy settings, alerts, paper and models stay unchanged',async()=>{

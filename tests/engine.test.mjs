@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DEFAULTS,ema,atr,vwap,aggregate,normalizeBars,riskState,dayKey,session,positionSize,evaluate,mergeSignals,applyGates,backtest,metrics} from '../engine.mjs';
-import {CandleBuilder} from '../feed.mjs';
+import {DEFAULTS,ema,atr,vwap,aggregate,normalizeBars,riskState,dayKey,session,positionSize,evaluate,mergeSignals,applyGates,backtest,metrics} from '../modules/engine.mjs';
+import {CandleBuilder} from '../modules/feed.mjs';
 const s=structuredClone(DEFAULTS),now=Date.parse('2026-10-09T22:00:00Z');
 const entry=(id,pnl,market='crypto',overrides={})=>({id,market,decision:'taken',time:'2026-10-09T18:00:00Z',closedAt:`2026-10-09T${19+Number(id)}:00:00Z`,pnl,plannedRisk:15,...overrides});
 test('EMA uses an SMA seed and standard alpha',()=>{assert.deepEqual(ema([1,2,3,4,5],3),[null,null,2,3,4]);assert.ok(Math.abs(ema(Array(40).fill(100)).at(-1)-100)<1e-10);});

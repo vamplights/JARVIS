@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {SETTINGS_GROUPS,settingsGroupFor,betaFieldGroup,sessionStatusBadge,readOnlyStatus,manualTradeForm,updateManualTradeFields} from '../ui-forms.mjs';
+import {SETTINGS_GROUPS,settingsGroupFor,betaFieldGroup,sessionStatusBadge,readOnlyStatus,manualTradeForm,updateManualTradeFields} from '../modules/ui-forms.mjs';
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
 const field=(label,name,value,type='number',hint='',extra='')=>'<label>'+label+'<input name="'+name+'" value="'+esc(value)+'" type="'+type+'" '+extra+'>'+hint+'</label>';
 const select=(label,name,values,value)=>'<label>'+label+'<select name="'+name+'">'+values.map(([v,t])=>'<option value="'+v+'" '+(v===value?'selected':'')+'>'+t+'</option>').join('')+'</select></label>';

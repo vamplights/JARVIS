@@ -18,7 +18,7 @@ function Get-JarvisNode {
 
 function Get-JarvisPort {
     $jarvisPortValue = '8765'
-    $jarvisPortFile = Join-Path $PSScriptRoot 'jarvis-port.txt'
+    $jarvisPortFile = Join-Path (Split-Path -Parent $PSScriptRoot) 'jarvis-port.txt'
     if (Test-Path -LiteralPath $jarvisPortFile) { $jarvisPortValue = (Get-Content -LiteralPath $jarvisPortFile -Raw).Trim() }
     if ($env:JARVIS_PORT) { $jarvisPortValue = $env:JARVIS_PORT }
     $jarvisPortNumber = 0

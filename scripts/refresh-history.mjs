@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {PublicMarket} from '../public-market.mjs';
-import {migrateSettings} from '../engine.mjs';
+import {PublicMarket} from '../modules/public-market.mjs';
+import {migrateSettings} from '../modules/engine.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=process.env.JARVIS_DATA_DIR||path.join(root,'data'),settingsPath=process.argv[2]||path.join(dir,'journal-settings.json');
 const stored=JSON.parse(fs.readFileSync(settingsPath,'utf8')),settings=migrateSettings(stored.settings||stored,{existing:true});
 const history=new PublicMarket({dir,settings:()=>settings});

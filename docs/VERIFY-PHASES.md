@@ -16,4 +16,4 @@ Start with Start JARVIS.ps1, or the double-click launcher in the containing proj
 10. Export the ledger from Signal Outcomes, or run `node scripts/analyze-ledger.mjs --json`. The CLI analyzes the full file; `/api/stats` filters to the current settings profile. Both keep raw, capped and legacy records out of the headline.
 11. Check existing notifications, manual journal, live connections, options review, charts, frozen theses and local access protections. No brokerage order routes exist.
 
-Read AUDIT-BETA-005.md for the changelog and assumptions. The trade bootstrap assumes independence and may understate uncertainty when outcomes overlap. Passing tests or a positive historical average alone does not establish an edge. No parameters are tuned on OOS results.
+Read docs/AUDIT-BETA-005.md for the changelog and assumptions. The trade bootstrap assumes independence and may understate uncertainty when outcomes overlap. Passing tests or a positive historical average alone does not establish an edge. No parameters are tuned on OOS results.

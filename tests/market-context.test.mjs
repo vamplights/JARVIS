@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {eastern,parseCPI,parseFOMC,eventCheck,dailyTrend,relativeStrength,contextGate,ivStats,MarketContext} from '../market-context.mjs';
-import {DEFAULTS,positionSize,evaluate,vwap} from '../engine.mjs';
+import {eastern,parseCPI,parseFOMC,eventCheck,dailyTrend,relativeStrength,contextGate,ivStats,MarketContext} from '../modules/market-context.mjs';
+import {DEFAULTS,positionSize,evaluate,vwap} from '../modules/engine.mjs';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
 test('Official event parsing handles Eastern DST, UTC CPI timestamps and FOMC decision dates',()=>{
  assert.equal(eastern('2026-10-12',8,30),Date.parse('2026-10-12T12:30:00Z'));assert.equal(eastern('2026-12-10',8,30),Date.parse('2026-12-10T13:30:00Z'));

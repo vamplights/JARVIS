@@ -1,4 +1,4 @@
-import {PATTERN_DEFAULTS} from '../chart-patterns.mjs';
+import {PATTERN_DEFAULTS} from '../modules/chart-patterns.mjs';
 export const S={...PATTERN_DEFAULTS,minDuration:12,maxDuration:48,lookback:160,swing:1,priorTrendBars:6,priorTrendATR:.6,impulseATR:1.5,minSizeATR:1,toleranceATR:.5,flatSlopeATR:.04,minSlopeATR:.015};
 export const T=Date.parse('2026-10-26T00:00Z')/1000;
 export function candles(values,start=T,step=300){return values.map((close,i)=>({time:start+i*step,open:close-.06,high:close+.22,low:close-.22,close,volume:100,complete:true,source:'Fixture'}));}

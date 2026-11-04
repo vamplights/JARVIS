@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {paperPanel,paperTabs,selectPaperTab,latestPaperLoader} from '../beta-view.mjs';
-import {ManualOptionSandbox} from '../manual-sandbox.mjs';
+import {paperPanel,paperTabs,selectPaperTab,latestPaperLoader} from '../modules/beta-view.mjs';
+import {ManualOptionSandbox} from '../modules/manual-sandbox.mjs';
 
 test('Paper sub-tabs stay available while loading and show recorded/open manual counts',()=>{
  const html=paperTabs({market:'manual'},[{closedAt:1},{}])+paperPanel(null,{market:'manual'});
@@ -49,7 +49,7 @@ test('Closed legacy rows render safely and empty manual results provide an expli
 });
 
 test('Requested sidebar icons are distinct and Research remains unchanged; paper panels start expanded',()=>{
- const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),panels=fs.readFileSync(new URL('../panel-disclosures.mjs',import.meta.url),'utf8');
+ const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),panels=fs.readFileSync(new URL('../modules/panel-disclosures.mjs',import.meta.url),'utf8');
  assert.match(app,/picks:'M12 3l2\.8/);assert.match(app,/scanner:'M5 4h16/);
  assert.match(app,/research:'M9 3h6 M10 3v7L4 20h16l-6-10V3 M8 15h8'/);
  assert.match(app,/case 'paper-tab':await switchPaperTab\(el.dataset.tab\)/);assert.match(app,/await switchPaperTab\('manual'\)/);

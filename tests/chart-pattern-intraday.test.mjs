@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {detectPatterns,supportingEvidence,confirmedPivots,analysisInput} from '../chart-patterns.mjs';
+import {detectPatterns,supportingEvidence,confirmedPivots,analysisInput} from '../modules/chart-patterns.mjs';
 import {S,candles,mirror,boundary} from './chart-pattern-fixtures.mjs';
 const find=(b,market='crypto')=>detectPatterns(b,{settings:S,market,tf:5});
 test('Higher-low and lower-high pullbacks need directional structure and trend',()=>{const b=boundary(.15,.15,{impulse:4});assert.ok(find(b).some(x=>x.kind==='higher-low-pullback'));assert.ok(find(mirror(b)).some(x=>x.kind==='lower-high-pullback'));assert.equal(find(boundary(0,0)).some(x=>x.kind==='higher-low-pullback'),false);});

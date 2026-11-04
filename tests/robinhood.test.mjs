@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseRobinhoodSnapshot} from '../robinhood.mjs';
-import {applyGates,DEFAULTS} from '../engine.mjs';
+import {parseRobinhoodSnapshot} from '../modules/robinhood.mjs';
+import {applyGates,DEFAULTS} from '../modules/engine.mjs';
 const now=Date.parse('2026-10-09T23:05:00Z');
 function fixture(){return {provider:'Robinhood MCP',capturedAt:new Date(now).toISOString(),quotes:{results:[{quote:{symbol:'SPY',has_traded:true,state:'active',last_trade_price:'100',venue_last_trade_time:'2026-10-09T20:00:00Z',last_non_reg_trade_price:'101',venue_last_non_reg_trade_time:'2026-10-09T23:04:59Z',bid_price:'100.9',ask_price:'101.1',venue_bid_time:'2026-10-09T23:04:58Z',venue_ask_time:'2026-10-09T23:04:58Z',adjusted_previous_close:'99'}}]},history:{results:[{symbol:'SPY',interval:'minute',bounds:'regular',bars:[{begins_at:'2026-10-09T19:59:00Z',open_price:'100',high_price:'102',low_price:'99',close_price:'101',volume:100,session:'reg'},{begins_at:'2026-10-09T19:58:00Z',open_price:'100',high_price:'100',low_price:'100',close_price:'100',volume:0,interpolated:true}]}]}};}
 test('Robinhood uses actual trade time, excludes synthetic candles, and keeps snapshots research-only',()=>{

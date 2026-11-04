@@ -1,9 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-import {ManualOptionSandbox} from '../manual-sandbox.mjs';import {DEFAULTS} from '../engine.mjs';
-import {collectModelSamples,featureVector,MODEL_PROTOCOL} from '../trend-model.mjs';import {settingsProfile} from '../stats.mjs';
-import {ModelReview} from '../model-review.mjs';import {PaperLedger} from '../paper-ledger.mjs';
-import {timeframeLabel,detailViewSignal} from '../signal-view.mjs';import {paperOptionButton} from '../option-paper-view.mjs';import {manualLearningPanel} from '../manual-learning-view.mjs';
+import {ManualOptionSandbox} from '../modules/manual-sandbox.mjs';import {DEFAULTS} from '../modules/engine.mjs';
+import {collectModelSamples,featureVector,MODEL_PROTOCOL} from '../modules/trend-model.mjs';import {settingsProfile} from '../modules/stats.mjs';
+import {ModelReview} from '../modules/model-review.mjs';import {PaperLedger} from '../modules/paper-ledger.mjs';
+import {timeframeLabel,detailViewSignal} from '../modules/signal-view.mjs';import {paperOptionButton} from '../modules/option-paper-view.mjs';import {manualLearningPanel} from '../modules/manual-learning-view.mjs';
 const now=Date.parse('2026-10-14T15:00Z'),settings=()=>structuredClone(DEFAULTS),signal=(market='stocks')=>({id:'manual-test',market,symbol:market==='stocks'?'SPY':'BTC-USD',strategy:'ema-cross',strategies:['ema-cross'],tf:3,dir:1,source:'Robinhood',confirmedAt:now-180000,price:100,stop:99,target:102,rr:2,netRR:1.8,adx:25,rvol:2,efficiency:.6,extension:.2,stopATR:1,trendAlignment:true,higherAlignment:true,status:'WATCH'});
 const assets=(s,price,time)=>({[s.symbol]:{symbol:s.symbol,source:'Robinhood',market:s.market,base:60,bars:[],quote:{price,bid:price-.001,ask:price+.001,time}}});
 function fixture(){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-manual-learning-'));return {dir,sandbox:new ManualOptionSandbox(dir),clean:()=>fs.rmSync(dir,{force:true,recursive:true})};}

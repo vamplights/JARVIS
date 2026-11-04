@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
-import {realisticAccount} from '../auto-paper.mjs';import {saveDeferred,flushDeferred} from '../deferred-save.mjs';import {PaperLedger} from '../paper-ledger.mjs';import {Scanner} from '../scanner.mjs';
+import {realisticAccount} from '../modules/auto-paper.mjs';import {saveDeferred,flushDeferred} from '../modules/deferred-save.mjs';import {PaperLedger} from '../modules/paper-ledger.mjs';import {Scanner} from '../modules/scanner.mjs';
 const tmp=()=>fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-perf-'));
 
 test('Cash reserved by a trade that could never be measured is released at its expiry',()=>{
@@ -34,14 +34,14 @@ test('Dashboard scanner snapshot leaves out bulk news and archives that no view 
  assert.ok('ideas' in light&&'trackRecord' in light);
 });
 test('The local error log rotates instead of growing without bound',async()=>{
- const {LocalCycle}=await import('../local-cycle.mjs'),{DEFAULTS}=await import('../engine.mjs'),dir=tmp(),log=path.join(dir,'local-errors.log');
+ const {LocalCycle}=await import('../modules/local-cycle.mjs'),{DEFAULTS}=await import('../modules/engine.mjs'),dir=tmp(),log=path.join(dir,'local-errors.log');
  fs.writeFileSync(log,'x'.repeat(1048577));
  const cycle=new LocalCycle({dir,settings:()=>structuredClone(DEFAULTS),history:{},scanner:{data:{}},paper:{},review:{},resolve:()=>{}});
  cycle.error('probe',new Error('boom'));
  assert.ok(fs.existsSync(log+'.old'));assert.ok(fs.statSync(log).size<1000);assert.match(fs.readFileSync(log,'utf8'),/boom/);
 });
 test('Settings cohorts get plain-English labels: dates, trade counts and what changed',async()=>{
- const {cohortSummaries}=await import('../cohort-labels.mjs'),day=Date.parse('2026-10-14T15:00:00Z'),next=Date.parse('2026-10-15T15:00:00Z');
+ const {cohortSummaries}=await import('../modules/cohort-labels.mjs'),day=Date.parse('2026-10-14T15:00:00Z'),next=Date.parse('2026-10-15T15:00:00Z');
  const rows=[{profile:'aaa',observedAt:day,settings:{maxTrades:3,stocks:['SPY']}},{profile:'aaa',observedAt:day+1000,settings:{maxTrades:3,stocks:['SPY']}},{profile:'bbb',observedAt:next,settings:{maxTrades:5,stocks:['SPY']}}];
  const out=cohortSummaries(rows,{});
  assert.deepEqual(out.map(c=>c.profile),['bbb','aaa']);
@@ -49,13 +49,13 @@ test('Settings cohorts get plain-English labels: dates, trade counts and what ch
  assert.equal(out[0].label,'Oct 15 · 1 signal · changed: max trades per day');
 });
 test('Paper snapshot rows leave out internal simulation data the page never shows',async()=>{
- const {AutoPaper}=await import('../auto-paper.mjs'),{DEFAULTS}=await import('../engine.mjs'),{settingsProfile}=await import('../stats.mjs');
+ const {AutoPaper}=await import('../modules/auto-paper.mjs'),{DEFAULTS}=await import('../modules/engine.mjs'),{settingsProfile}=await import('../modules/stats.mjs');
  const settings=structuredClone(DEFAULTS),paper=new AutoPaper({dir:null,settings:()=>settings}),profile=settingsProfile(settings);
  paper.data.rows.push({id:'x',profile,exitStyle:'fixed',market:'stocks',horizon:'intraday',symbol:'SPY',state:'closed',closedAt:Date.now(),realizedR:1,pnl:10,entryAt:Date.now()-1000,entry:100,initialStop:99,costs:{feeBps:0,slippageBps:0,spreadBps:0},settings,forwardCore:{big:1},features:{a:1}});
  const view=paper.snapshot({profile});assert.equal(view.rows.length,1);for(const k of ['settings','forwardCore','features'])assert.ok(!(k in view.rows[0]),k);
 });
 test('Closed trades table shows the newest 100 with a show-all toggle; win rates still use every trade',async()=>{
- const {paperPanel}=await import('../beta-view.mjs'),rows=Array.from({length:150},(_,i)=>({id:'r'+i,symbol:'SPY',strategy:'ema-cross',dir:1,closedAt:1e12+i,pnl:1,realizedR:1,entry:1,exit:2,market:'stocks'}));
+ const {paperPanel}=await import('../modules/beta-view.mjs'),rows=Array.from({length:150},(_,i)=>({id:'r'+i,symbol:'SPY',strategy:'ema-cross',dir:1,closedAt:1e12+i,pnl:1,realizedR:1,entry:1,exit:2,market:'stocks'}));
  const d={rows,open:[],buckets:{},history:[],curve:[],cohorts:[],note:'',realistic:{skipped:[]},n:150,missedFills:0,unmeasurable:0};
  const few=paperPanel(d,{market:'stocks'}),all=paperPanel(d,{market:'stocks',showAllClosed:true});
  assert.equal((few.match(/<tr><td>SPY/g)||[]).length,100);assert.match(few,/data-paper-closed-toggle="all"[^>]*>Show all 150/);

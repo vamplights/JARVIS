@@ -6,7 +6,7 @@ $jarvisAdmin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsId
 if (-not $jarvisAdmin) { throw 'Run this one-time setup in PowerShell as Administrator.' }
 $jarvisNssm=(Resolve-Path -LiteralPath $NssmPath).Path
 if ([IO.Path]::GetFileName($jarvisNssm) -ne 'nssm.exe') { throw 'Supply the local nssm.exe downloaded from https://nssm.cc/download.' }
-. (Join-Path $jarvisRoot 'Get-JarvisNode.ps1')
+. (Join-Path $jarvisRoot 'scripts/Get-JarvisNode.ps1')
 $jarvisNode=Get-JarvisNode
 $jarvisPort=Get-JarvisPort
 # Run under your Windows account so existing DPAPI authorization remains readable.
@@ -18,7 +18,7 @@ if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) { throw 'JARVI
 $jarvisListeners=@(Get-NetTCPConnection -LocalAddress '127.0.0.1' -LocalPort $jarvisPort -State Listen -ErrorAction SilentlyContinue)
 if ($jarvisListeners.Count) {
  $env:JARVIS_PORT=[string]$jarvisPort
- $jarvisHealth=& $jarvisNode (Join-Path $jarvisRoot 'health-check.mjs') | ConvertFrom-Json
+ $jarvisHealth=& $jarvisNode (Join-Path $jarvisRoot 'scripts/health-check.mjs') | ConvertFrom-Json
  if ($LASTEXITCODE -ne 0 -or $jarvisHealth.application -ne 'jarvis') { throw 'Port is not verified as JARVIS; no process stopped.' }
  foreach ($jarvisPid in ($jarvisListeners.OwningProcess | Select-Object -Unique)) {
   $jarvisProcess=Get-CimInstance Win32_Process -Filter "ProcessId=$jarvisPid"

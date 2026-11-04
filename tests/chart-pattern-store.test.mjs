@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {ChartPatternStore} from '../chart-pattern-store.mjs';
-import {patternOverlay,patternPanel} from '../chart-pattern-view.mjs';
-import {PATTERN_DEFAULTS,detectPatterns} from '../chart-patterns.mjs';
-import {evaluate,DEFAULTS} from '../engine.mjs';
-import {settingsProfile} from '../stats.mjs';
-import {AutoPaper} from '../auto-paper.mjs';
+import {ChartPatternStore} from '../modules/chart-pattern-store.mjs';
+import {patternOverlay,patternPanel} from '../modules/chart-pattern-view.mjs';
+import {PATTERN_DEFAULTS,detectPatterns} from '../modules/chart-patterns.mjs';
+import {evaluate,DEFAULTS} from '../modules/engine.mjs';
+import {settingsProfile} from '../modules/stats.mjs';
+import {AutoPaper} from '../modules/auto-paper.mjs';
 import {S,T,candles,boundary} from './chart-pattern-fixtures.mjs';
 function tempStore(){const dir=fs.mkdtempSync(path.resolve('work/chart-pattern-store-test-'));return {dir,store:new ChartPatternStore(dir)};}
 const fixture=()=>({kind:'rectangle',name:'Rectangle',dir:1,anchorTime:T,startTime:T,knownAt:(T+300)*1000,upper:102,lower:98,confirmationLevel:102,invalidationLevel:98,points:[],lines:[{t1:T,t2:T+600,p1:102,p2:102,role:'resistance'}],evidence:[],trigger:false});
@@ -41,7 +41,7 @@ test('Pending MA/VWAP retests and zone rejections wait for their recorded resump
 test('Analysis leaves strategy output, cohort, settings and input OHLCV untouched',()=>{const {dir,store}=tempStore();try{
  const b=boundary(0,.05),settings=structuredClone(DEFAULTS),asset={symbol:'BTC-USD',market:'crypto',source:'Fixture',base:300,bars:b,replay:true},input={...asset,tf:5,settings,now:(b.at(-1).time+300)*1000},before=evaluate(input),clone=structuredClone(input),profile=settingsProfile(settings);
  store.configure({...S,enabled:true,frames:[5]});store.evaluate(asset,5,input.now,10000);assert.deepEqual(evaluate(input),before);store.configure({enabled:false});assert.deepEqual(evaluate(input),before);assert.deepEqual(input,clone);assert.equal(settingsProfile(settings),profile);assert.deepEqual(fs.readdirSync(dir),['chart-pattern-analysis.json']);
- const code=fs.readFileSync(new URL('../chart-pattern-store.mjs',import.meta.url),'utf8');assert.doesNotMatch(code,/paper\.observe|learning\.observe|recordTopPickAlert|newlyDetected\.push|fetch\(/);
+ const code=fs.readFileSync(new URL('../modules/chart-pattern-store.mjs',import.meta.url),'utf8');assert.doesNotMatch(code,/paper\.observe|learning\.observe|recordTopPickAlert|newlyDetected\.push|fetch\(/);
 }finally{fs.rmSync(dir,{recursive:true,force:true});}});
 test('Corrupt history fails closed and preserves original bytes',()=>{const {dir}=tempStore();try{const file=path.join(dir,'chart-pattern-analysis.json');fs.writeFileSync(file,'broken');const store=new ChartPatternStore(dir);assert.equal(store.data.settings.enabled,false);assert.ok(store.error);assert.throws(()=>store.configure({enabled:true}));assert.equal(fs.readFileSync(file,'utf8'),'broken');}finally{fs.rmSync(dir,{recursive:true,force:true});}});
 test('An unfinished actual breakout stays provisional, then confirms only on close; stale live data skips work',()=>{const {dir,store}=tempStore();try{

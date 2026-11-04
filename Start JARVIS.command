@@ -12,7 +12,7 @@ node --input-type=module -e 'if (Number(process.versions.node.split(".")[0]) < 2
 node scripts/init-settings.mjs || fail "JARVIS could not initialize its settings."
 export JARVIS_PORT="${JARVIS_PORT:-8765}"
 jarvis_url="http://127.0.0.1:$JARVIS_PORT"
-if node health-check.mjs >/dev/null 2>&1; then
+if node scripts/health-check.mjs >/dev/null 2>&1; then
   open "$jarvis_url"
   exit 0
 fi
@@ -24,7 +24,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 for ((attempt=0; attempt<30; attempt++)); do
   kill -0 "$jarvis_pid" 2>/dev/null || break
-  if node health-check.mjs >/dev/null 2>&1; then
+  if node scripts/health-check.mjs >/dev/null 2>&1; then
     open "$jarvis_url"
     break
   fi

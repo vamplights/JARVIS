@@ -542,3 +542,9 @@ All closed-candle, frozen-thesis, source-integrity, chronological/embargo, per-m
 ## Plain-language pattern detail — 2026-10-27
 - Display prices with two decimals and local timestamps to the minute. Convert raw pivot timestamps and long decimals in evidence to readable presentation text.
 - Keep the primary view focused on interpretation and key levels; move technical evidence/timestamps into a collapsed Advanced disclosure. Detection settings stay available under Advanced with plain-language explanations; no detection values, stored evidence or trading rules changed.
+
+## Folder organization — 2026-11-01
+- Moved the handoff and audit into docs, launcher support into scripts, and local test logs into work/test-logs. Updated launcher and documentation paths while retaining the existing port configuration and application behavior.
+
+## Application module organization — 2026-11-01
+- Moved application modules into modules/ and updated imports, server static paths, scripts and tests. The server entry point and launchers remain at project root. Runtime data and calculations are unchanged.
