@@ -12,21 +12,40 @@ do not recursively delegate. Ordinary non-coding questions stay with the primary
 
 | Agent | Exact model | Default effort | Permitted effort | Typical work |
 | --- | --- | --- | --- | --- |
-| Luna | `gpt-6-luna` | `xhigh` | `xhigh` only | Simple fixes, edits, cleanup and small functions |
-| Terra | `gpt-6.1-terra` | `high` | `high`, `xhigh` | Visual design, layouts, frontend and responsive UI |
-| Sol | `gpt-6.1-sol` | `medium` | `medium`, `high` | Multi-file features, API logic and moderate debugging |
-| Astra | `gpt-6-astra` | `high` | `high` only | Hard architecture, algorithms, advanced debugging and critical changes |
+| Luna | `gpt-6-luna` | `low` | `low`, `medium`, `high`, `xhigh`, `max` | Simple fixes, edits, cleanup and small functions |
+| Terra | `gpt-6.1-terra` | `low` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | Visual design, layouts, frontend and responsive UI |
+| Sol | `gpt-6.1-sol` | `low` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | Multi-file features, API logic and moderate debugging; use low for normal and moderate work |
+| Astra | `gpt-6-astra` | `low` | `low`, `medium`, `high`, `xhigh`, `max`, `ultra` | Hard architecture, algorithms, advanced debugging and critical changes |
 
 An exact minor UI text/value edit can use Luna; visual judgment belongs to Terra.
 Complex backend or critical architecture work is not downgraded just because a
 request mentions UI. Long prompts alone do not justify an expensive model.
 
+### Astra approval gate
+
+Every Astra invocation requires explicit approval from the user for that specific
+use, including implementation, review, and investigation. The primary must pause
+before calling any Astra tool and ask the user, describing the proposed task and
+effort. Approval applies only to that invocation. This is not a blanket change to
+the rule delegating coding work to one native worker: choose a suitable non-Astra
+route where possible, and wait for approval only when Astra is the proposed route.
+Codex has no hard native per-role invocation approval setting in the project
+configuration inspected here; this gate is enforced through primary-agent
+instructions and validator checks, and is therefore behavioral rather than a
+runtime-enforced block. The Astra role instructions also require stopping if the
+primary invokes it without the task-specific approval.
+
 The four standalone agent files pin their defaults. If the spawn interface exposes
-custom roles, select the role. If it exposes only model and effort, the primary
-passes both explicitly and supplies the role instructions, using a compact fresh
-handoff (`fork_turns="none"`). The latter was the interface exposed in this chat.
-For permitted Terra/Sol effort increases, an explicit untyped worker can be used;
-the named role's pinned setting otherwise takes precedence over a spawn override.
+custom roles, select the role when its default effort fits. If it exposes only
+model and effort, pass both explicitly and supply the role instructions, using a
+compact fresh handoff (`fork_turns="none"`). For any non-default effort, use an untyped/default worker with explicit model
+and effort plus the role instructions (`fork_turns="none"`); named roles keep
+their pinned defaults. Choose the lowest supported effort likely to handle the task and
+increase only for concrete need. Sol should stay at low for normal and moderate
+work, including ordinary multi-file and API tasks. Use medium or high only when
+scope, ambiguity, or critical risk clearly exceeds low capability, or a concrete
+failed attempt demonstrates the need; task category alone is not enough. Avoid
+reflexive medium and reflexive `xhigh`, `max`, or `ultra`.
 
 ## Automation and its limits
 
@@ -37,13 +56,11 @@ test coordinator can read it and perform routing without per-task model choices.
 Higher-priority policies, unavailable tools, explicit user overrides, or untrusted
 project configuration can prevent routing; the primary must disclose that.
 
-`.codex/config.toml` defaults the primary to Luna/Extra High and also sets those
-as fallback subagent defaults. Existing global configuration is preserved. The
-active chat stays on its already selected model; there is no automatic mid-chat
+`.codex/config.toml` defaults the primary and fallback subagents to Luna/Low.
+Existing global configuration is preserved. The active chat stays on its already selected model; there is no automatic mid-chat
 parent model switching. Explicit desktop/CLI model selections can override project
-defaults. If an existing chat remains on Astra, selecting Luna/Extra High once or
-starting a new project chat with the project defaults avoids Astra coordinator
-cost. Worker selection itself does not require manual choices.
+defaults. If an existing chat remains on Astra, selecting Luna/Low once or starting a new
+project chat with the project defaults avoids Astra coordinator cost. Worker selection itself does not require manual choices.
 
 All role files and instructions persist on disk. A fresh Codex session reloads
 them. Existing sessions may retain cached configuration; this session used explicit
@@ -63,8 +80,9 @@ services are not reasons to buy a stronger model. A retry needs a concrete chang
 condition. There is at most one same-worker retry per distinct failure before
 reassessment. Capability escalation usually follows Luna -> Sol -> Astra; Terra
 handles visual work, with later escalation determined by the actual problem.
-Previous edits, exact failures and diagnostics are passed forward. No restarting
-from scratch, raising Astra above High, or silently changing model/effort.
+Previous edits, exact failures and diagnostics are passed forward. Do not restart
+from scratch or silently change model/effort. Raise effort only when concrete task
+difficulty or a failed attempt requires it.
 
 ## Files
 
@@ -112,8 +130,9 @@ From the project directory with Python 3.11 or later:
 python scripts/verify-codex-routing.py
 ```
 
-This parses all five TOML files, checks exact role names/models/efforts, validates
-project defaults and compares against the installed desktop model catalog. A
+This parses all five TOML files, checks exact role names/models/default efforts,
+validates project defaults and compares every permitted role effort against the
+installed desktop model catalog. A
 cached catalog confirms supported settings, not actual inference access.
 
 For native effective configuration, provide the absolute Codex executable path

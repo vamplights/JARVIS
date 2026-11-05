@@ -10,7 +10,8 @@ fail() {
 command -v node >/dev/null 2>&1 || fail "Install Node.js 22 or newer, then open Start JARVIS.command again."
 node --input-type=module -e 'if (Number(process.versions.node.split(".")[0]) < 22 || typeof WebSocket === "undefined") process.exit(1)' || fail "JARVIS requires Node.js 22 or newer with WebSocket support."
 node scripts/init-settings.mjs || fail "JARVIS could not initialize its settings."
-export JARVIS_PORT="${JARVIS_PORT:-8765}"
+JARVIS_PORT="$(node scripts/launch-port.mjs)" || fail "Could not read the configured JARVIS port."
+export JARVIS_PORT
 jarvis_url="http://127.0.0.1:$JARVIS_PORT"
 if node scripts/health-check.mjs >/dev/null 2>&1; then
   open "$jarvis_url"

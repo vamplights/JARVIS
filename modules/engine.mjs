@@ -1,3 +1,4 @@
+import {SPECIAL_STRATEGIES} from './special-strategies.mjs';
 import {ema9Signals} from './ema9-vwap.mjs';
 import {isIndexSymbol} from './index-data.mjs';
 import {continuationParams,emaContinuation,vwapContinuation,levelContinuation} from './continuations.mjs';
@@ -139,7 +140,7 @@ export function evaluate(input){
  const source=input.source||sources[0]||"Unspecified historical source",fallback=!!input.fallback||(input.prepared?input.prepared.fallback:(input.bars||[]).some(b=>b.fallback===true));
  for(const id of s.strategies){if(!strategyEnabled(id,tf,s,input.market))continue;const params=strategyParams(s,id),key=JSON.stringify(params);if(!groups.has(key))groups.set(key,{params,ids:[]});groups.get(key).ids.push(id);}
  if(tf===1&&!(s.allowOneMinute&&input.market==='stocks'))return {signals:[],analysis:{ready:false,reason:'One-minute bars are collected only; signal frames start at three minutes'}};
- if(['ema9-vwap-retest','orb-in-play','spy-qqq-momentum','post-earnings','daily-trend'].some(k=>strategyEnabled(k,tf,s,input.market))){const extra=[...specialSignals({...input,settings:s}),...ema9Signals({...input,now:input.now??Date.now(),settings:s})];for(const g of groups.values())g.ids=g.ids.filter(id=>!['ema9-vwap-retest','orb-in-play','spy-qqq-momentum','post-earnings','daily-trend'].includes(id));const regular=[...groups.values()].filter(g=>g.ids.length).map(g=>evaluateCore({...input,settings:{...s,strategies:g.ids},params:g.params}));return {signals:combineSignals([...regular.flatMap(r=>r.signals),...extra].map(r=>({...r,source,fallback,featureTime:r.confirmedAt}))),analysis:regular[0]?.analysis||{ready:true}};}
+ if(SPECIAL_STRATEGIES.some(k=>strategyEnabled(k,tf,s,input.market))){const extra=[...specialSignals({...input,settings:s}),...ema9Signals({...input,now:input.now??Date.now(),settings:s})];for(const g of groups.values())g.ids=g.ids.filter(id=>!SPECIAL_STRATEGIES.includes(id));const regular=[...groups.values()].filter(g=>g.ids.length).map(g=>evaluateCore({...input,settings:{...s,strategies:g.ids},params:g.params}));return {signals:combineSignals([...regular.flatMap(r=>r.signals),...extra].map(r=>({...r,source,fallback,featureTime:r.confirmedAt}))),analysis:regular[0]?.analysis||{ready:true}};}
  if(!groups.size)return evaluateCore({...input,settings:{...s,strategies:[]},params:strategyParams(s,'')});
  const results=[...groups.values()].map(g=>evaluateCore({...input,settings:{...s,strategies:g.ids},params:g.params}));
  return {signals:combineSignals(results.flatMap(r=>r.signals).map(r=>({...r,source,fallback,featureTime:r.confirmedAt}))),analysis:results[0].analysis};

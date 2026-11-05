@@ -15,16 +15,22 @@ import tomllib
 
 
 ROLES = {
-    "luna": ("gpt-6-luna", "xhigh"),
-    "terra": ("gpt-6.1-terra", "high"),
-    "sol": ("gpt-6.1-sol", "medium"),
-    "astra": ("gpt-6-astra", "high"),
+    "luna": ("gpt-6-luna", "low"),
+    "terra": ("gpt-6.1-terra", "low"),
+    "sol": ("gpt-6.1-sol", "low"),
+    "astra": ("gpt-6-astra", "low"),
 }
-DEFAULTS = {"model": "gpt-6-luna", "model_reasoning_effort": "xhigh"}
+ALLOWED_EFFORTS = {
+    "luna": ("low", "medium", "high", "xhigh", "max"),
+    "terra": ("low", "medium", "high", "xhigh", "max", "ultra"),
+    "sol": ("low", "medium", "high", "xhigh", "max", "ultra"),
+    "astra": ("low", "medium", "high", "xhigh", "max", "ultra"),
+}
+DEFAULTS = {"model": "gpt-6-luna", "model_reasoning_effort": "low"}
 AGENTS = {
     "enabled": True,
     "default_subagent_model": "gpt-6-luna",
-    "default_subagent_reasoning_effort": "xhigh",
+    "default_subagent_reasoning_effort": "low",
     "max_concurrent_threads_per_session": 4,
 }
 
@@ -52,7 +58,19 @@ def expected_fields(report, label, actual, expected):
 
 
 def local_checks(root, report):
-    check(report, "root-instructions", (root / "AGENTS.md").is_file(), "AGENTS.md exists")
+    instructions_path = root / "AGENTS.md"
+    check(report, "root-instructions", instructions_path.is_file(), "AGENTS.md exists")
+    try:
+        instructions = instructions_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        instructions = ""
+        check(report, "astra-approval:primary-gate", False, str(exc))
+    else:
+        required = ("Astra requires explicit, task-specific user approval before every Astra use",
+                    "stop before making any Astra tool call")
+        check(report, "astra-approval:primary-gate",
+              all(phrase in instructions for phrase in required),
+              "AGENTS.md requires per-use approval before Astra tool calls")
     config = read_toml(root / ".codex/config.toml", report)
     expected_fields(report, "project", config, DEFAULTS)
     agents = config.get("agents", {})
@@ -64,10 +82,27 @@ def local_checks(root, report):
         value = read_toml(role_dir / f"{role}.toml", report)
         expected_fields(report, role, value,
                         {"name": role, "model": model, "model_reasoning_effort": effort})
+        check(report, f"policy:{role}:default-permitted", effort in ALLOWED_EFFORTS[role],
+              {"default_effort": effort, "permitted_efforts": list(ALLOWED_EFFORTS[role])})
         for key in ("description", "developer_instructions"):
             field = value.get(key)
             check(report, f"{role}:{key}", isinstance(field, str) and bool(field.strip()),
                   "required nonempty string")
+        if role == "astra":
+            instructions = value.get("developer_instructions", "")
+            required = ("explicitly approves this specific Astra use",
+                        "before any Astra tool call")
+            check(report, "astra-approval:role-gate",
+                  all(phrase in instructions for phrase in required),
+                  "Astra role requires task-specific approval before proceeding")
+        if role == "sol":
+            instructions = value.get("developer_instructions", "")
+            required = ("Keep low for normal and moderate work",
+                        "Use medium or high only when scope, ambiguity, or critical risk clearly exceeds low capability",
+                        "task category alone is not enough")
+            check(report, "policy:sol:low-bias",
+                  all(phrase in instructions for phrase in required),
+                  "Sol instructions reserve medium/high for clear need")
     catalog_path = Path.home() / ".codex/models_cache.codex_work_desktop.json"
     try:
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -76,8 +111,11 @@ def local_checks(root, report):
                              "client_version": catalog.get("client_version")}
         for role, (model, effort) in ROLES.items():
             supported = [v["effort"] for v in models.get(model, {}).get("supported_reasoning_levels", [])]
-            check(report, f"catalog:{role}", effort in supported,
-                  {"model": model, "requested_effort": effort, "supported_efforts": supported})
+            permitted = ALLOWED_EFFORTS[role]
+            missing = sorted(set(permitted) - set(supported))
+            check(report, f"catalog:{role}", not missing,
+                  {"model": model, "default_effort": effort, "permitted_efforts": list(permitted),
+                   "supported_efforts": supported, "missing_permitted_efforts": missing})
         report["warnings"].append("Cached catalog support does not prove live model access or execution.")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         check(report, "catalog", False, str(exc))

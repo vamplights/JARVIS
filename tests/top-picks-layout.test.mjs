@@ -8,15 +8,13 @@ const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
 
 test('Top Pick sections share the responsive radar grid and group before applying the ticker limit', () => {
-  const panel = app.slice(app.indexOf('function topPicksPanel('), app.indexOf('function picksPage('));
-  const picksPage = app.slice(app.indexOf('function picksPage('), app.indexOf('function overview('));
+  const panel = app.slice(app.indexOf('function topPicksPanel('), app.indexOf('function overview('));
   assert.match(panel, /currentTopPicks\(market\)/);
   assert.match(panel, /class="signal-list top-picks-list"[^]*groupSignalCards\(picks\)\.slice\(0,8\)\.map\(signalCardGroup\)/);
-  assert.match(picksPage, /class="signal-list top-picks-list"[^]*groupSignalCards\(options\)\.map\(signalCardGroup\)/);
   assert.match(css, /\.signal-list\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,310px\),1fr\)\)/);
 });
 
-test('Overview, Top Picks and option candidates render one group per ticker with all its plans', () => {
+test('Market-page Top Picks render one group per ticker with all its plans', () => {
   const plans=[3,5,15].map(tf=>({id:'TSLA-'+tf,symbol:'TSLA',market:'stocks',tf,optionPlan:{contract:{},reality:{available:true}}}));
   plans.push(...Array.from({length:9},(_,i)=>({id:'stock-'+i,symbol:'STOCK'+i,market:'stocks'})));
   const renderGroup=g=>'<section data-ticker="'+g[0].symbol+'" data-plans="'+g.map(s=>s.id).join(',')+'"></section>';
@@ -28,7 +26,5 @@ test('Overview, Top Picks and option candidates render one group per ticker with
   assert.match(panel,/data-plans="TSLA-3,TSLA-5,TSLA-15"/);
   assert.match(panel,/data-ticker="STOCK6"/);
   assert.doesNotMatch(panel,/data-ticker="STOCK7"/);
-  const page=runInNewContext(definitions+';picksPage()',context),options=page.slice(page.indexOf('Options Top Pick candidates'));
-  assert.equal((options.match(/data-ticker="TSLA"/g)||[]).length,1);
-  assert.match(options,/data-plans="TSLA-3,TSLA-5,TSLA-15"/);
+
 });

@@ -20,7 +20,32 @@ export class Scanner {
  universe(){return [...new Set([...this.settings().stocks,...Object.values(this.data.membership).flatMap(x=>x.symbols||[])])];}
  async membership(){if(!this.settings().scanner.enabled)return;for(const [key,url]of Object.entries(MEMBERSHIP_SOURCES)){if(this.now()-(this.data.membership[key]?.checkedAt||0)<86400000)continue;try{const r=await this.requests.fetch(url),body=await r.text(),symbols=key==='sp500'?body.trim().split(/\r?\n/).slice(1).map(l=>l.split(',')[0].replace(/\./g,'-')):JSON.parse(body).data?.data?.rows?.map(r=>r.symbol);if(!symbols||symbols.length<(key==='sp500'?450:90))throw Error('Membership incomplete');this.data.membership[key]={symbols:symbols.filter(s=>/^[A-Z0-9.-]{1,15}$/.test(s)),names:key==='sp500'?Object.fromEntries(parseConstituents(body).map(r=>[r.symbol,r.name])):Object.fromEntries((JSON.parse(body).data?.data?.rows||[]).map(r=>[r.symbol,r.companyName])),checkedAt:this.now(),source:url,...(key==='sp500'?{sectors:Object.fromEntries(body.trim().split(/\r?\n/).slice(1).map(line=>{const fields=line.match(/("[^"]*"|[^,]*)(,|$)/g)?.map(v=>v.replace(/,$/,'').replace(/^"|"$/g,''))||[];const map={'Information Technology':'XLK','Energy':'XLE','Financials':'XLF','Health Care':'XLV','Industrials':'XLI','Consumer Discretionary':'XLY','Consumer Staples':'XLP','Utilities':'XLU','Real Estate':'XLRE','Materials':'XLB','Communication Services':'XLC'};return [fields[0]?.replace(/\./g,'-'),map[fields[2]]||null];}))}:{})};}catch(e){this.error(key+': '+e.message);}}}
  error(message){this.data.errors.push({time:this.now(),message});this.data.errors=this.data.errors.slice(-30);}
- async quotes(symbols){const out={};for(let i=0;i<symbols.length;i+=50){try{const body=await (await this.requests.fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols='+encodeURIComponent(symbols.slice(i,i+50).join(',')))).json();for(const r of body.quoteResponse?.result||[])if(r.regularMarketPrice>0)out[r.symbol]={price:r.regularMarketPrice,time:r.regularMarketTime*1000,open:r.regularMarketOpen,volume:r.regularMarketVolume};}catch(e){this.error('Batched quotes: '+e.message);break;}}for(let i=0;i<symbols.length;i+=3)await Promise.allSettled(symbols.slice(i,i+3).filter(symbol=>!out[symbol]).map(async symbol=>{try{const r=await this.history.yahoo(symbol,86400,{range:'5d'});if(r.quote?.price>0)out[symbol]={...r.quote,today:r.bars.at(-1)};}catch(e){this.error(symbol+' public chart: '+e.message);}}));return out;}
+ async quotes(symbols){
+  const out={},now=this.now(),assets=this.assets?.()||{},maxAge=(this.settings().stockStaleSeconds||150)*1000;
+  // Connected Robinhood quotes are already timestamped. Never reuse replay,
+  // imported snapshots, public fallback data or a stale mark as a live quote.
+  for(const symbol of symbols){const a=assets[symbol],q=a?.quote;
+   if(a?.source?.startsWith('Robinhood')&&!a.replay&&!a.snapshot&&!a.fallback&&q?.price>0&&q.time<=now&&now-q.time<=maxAge)out[symbol]={...q,source:'Robinhood'};
+  }
+  const missing=symbols.filter(s=>!out[s]);
+  if(now>=(this.batchRetryAt||0))for(let i=0;i<missing.length;i+=50){
+   try{const body=await (await this.requests.fetch('https://query1.finance.yahoo.com/v7/finance/quote?symbols='+encodeURIComponent(missing.slice(i,i+50).join(',')))).json();
+    if(!Array.isArray(body.quoteResponse?.result))throw Error('Yahoo quote response unavailable');
+    for(const r of body.quoteResponse.result)if(r.regularMarketPrice>0)out[r.symbol]={price:r.regularMarketPrice,time:r.regularMarketTime*1000,open:r.regularMarketOpen,volume:r.regularMarketVolume};
+    this.batchFailures=0;
+   }catch(e){this.batchFailures=(this.batchFailures||0)+1;this.batchRetryAt=now+Math.min(3600000,60000*2**Math.min(6,this.batchFailures-1));this.error('Batched quotes: '+e.message);break;}
+  }
+  if(now<(this.chartRetryAt||0))return out;
+  const remaining=missing.filter(s=>!out[s]);
+  for(let i=0;i<remaining.length;i+=3){const group=remaining.slice(i,i+3);
+   const fetched=await Promise.allSettled(group.map(async symbol=>{
+    const r=await this.history.yahoo(symbol,86400,{range:'5d'});if(r.quote?.price>0)out[symbol]={...r.quote,today:r.bars.at(-1)};
+   }));
+   if(fetched.every(r=>r.status==='rejected')){this.chartFailures=(this.chartFailures||0)+1;this.chartRetryAt=now+Math.min(900000,30000*2**Math.min(5,this.chartFailures-1));this.error('Public chart quotes: '+fetched[0].reason.message);break;}
+   this.chartFailures=0;
+  }
+  return out;
+ }
  async warm({opening=false}={}){if(this.warming||!this.settings().scanner.enabled)return;this.warming=true;try{for(const symbol of [...new Set([...BENCHMARKS,...this.universe()])]){for(const [base,days]of [[86400,730],[300,59]]){if(base===300&&BENCHMARKS.includes(symbol)&&!this.settings().stocks.includes(symbol))continue;const saved=this.history.dataset(symbol,base,'Yahoo Finance');if(saved&&(saved.requestedDays||0)>=days&&this.now()-saved.downloadedAt<(opening&&base===300?300000:86400000))continue;try{await this.history.download(symbol,'stocks',days,{base});}catch(e){this.error(symbol+': '+e.message);}}}}finally{this.warming=false;}}
  buildInPlay(now=this.now()){const p=parts(now,'America/New_York');if(p.minutes<575||!session(now,this.settings()).tradingDay)return;const key=p.date+'|'+this.profile();if(this.data.inPlayKey===key)return;const rows=[];for(const symbol of this.universe()){const a=this.assets()[symbol],one=this.history.dataset(symbol,60,'Yahoo Finance'),five=this.history.dataset(symbol,300,'Yahoo Finance'),daily=this.daily(symbol);const bars=[...new Map([...(one?.bars||[]),...(a?.base===60?a.bars:[])].map(b=>[b.time,b])).values()];let row=inPlayStock({symbol,company:this.news.cache[symbol]?.company||this.data.membership.sp500?.names?.[symbol]||this.data.membership.nasdaq100?.names?.[symbol],bars,base:60,daily,openingHistory:five?.bars,news:[...(this.news.cache[symbol]?.items||[]),...(this.data.feedNews?.[symbol]?.items||[])],earnings:this.context().earnings?.[symbol]?.events||[],settings:this.settings(),now});if(row.missing&&five?.bars?.length){row=inPlayStock({symbol,company:this.news.cache[symbol]?.company||this.data.membership.sp500?.names?.[symbol]||this.data.membership.nasdaq100?.names?.[symbol],bars:five.bars,base:300,daily,news:[...(this.news.cache[symbol]?.items||[]),...(this.data.feedNews?.[symbol]?.items||[])],earnings:this.context().earnings?.[symbol]?.events||[],settings:this.settings(),now});}rows.push(row);}
  // The archive is the decision record, not a cache of the latest wall-clock rebuild.

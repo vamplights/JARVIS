@@ -8,3 +8,22 @@ test('Chart feed uses IEX only, validates keys, and sends credentials only to fi
 test('Offline review never opens a provider connection',async()=>{const f=new AlpacaChartFeed({offline:true,fetcher:()=>{throw Error('must not call');}});await assert.rejects(f.connect({key:'key',secret:'secret'}),/offline/);assert.equal(f.view().configured,false);});
 test('Reconnect history replaces old closed candles with provider corrections',async()=>{const f=new AlpacaChartFeed({fetcher:async()=>({ok:true,json:async()=>({bars:{SPY:[{...row,c:102}]}})})});f.credentials={key:'key',secret:'secret'};f.bars.set('SPY',[alpacaBar(row)]);await f.history('SPY');assert.equal(f.bars.get('SPY')[0].close,102);});
 test('Disconnect forgets credentials and closes viewers without returning secrets',()=>{let cleared=0,ended=0;const f=new AlpacaChartFeed({store:{clear(){cleared++;}}});f.credentials={key:'key',secret:'secret'};f.clients.set({write(){},end(){ended++;}},'SPY');const d=f.disconnect();assert.equal(d.configured,false);assert.equal(cleared,1);assert.equal(ended,1);assert.equal(f.clients.size,0);});
+
+test('Live minute, rollover and late official corrections update series incrementally',async()=>{
+ const {upsertChartBar,updateChartTail}=await import('../modules/live-chart-data.mjs');
+ const {emaStep,emaSeries,sessionVWAP,vwapStep}=await import('../modules/chart-indicators.mjs');
+ const {aggregate}=await import('../modules/engine.mjs');
+ const start=Date.parse('2026-10-30T13:30Z')/1000,b=(i,c)=>({time:start+i*60,open:c,high:c,low:c,close:c,volume:1});
+ const raw=[b(0,10),b(1,20),b(2,30)],updates=[],series={update:(point,historical)=>updates.push([point,historical])};
+ const chart={raw,rows:[],candles:series,volume:series,lines:[{series,states:[],step:(s,x)=>emaStep(s,x,2)},{series,states:[],step:(s,x)=>vwapStep(s,x,'stocks',180)}]};
+ const paint=startTime=>updateChartTail(chart,startTime,3,(start+600)*1000);
+ paint(start);assert.deepEqual(chart.rows,aggregate(raw,3,60,(start+600)*1000));
+ const initial=chart.rows[0];
+ for(const [i,c,action] of [[3,40,'append'],[3,42,'latest'],[4,50,'append'],[5,60,'append']]){
+  assert.equal(upsertChartBar(raw,b(i,c)),action);paint(start+180);assert.strictEqual(chart.rows[0],initial);
+ }
+ assert.equal(upsertChartBar(raw,b(1,100)),'correction');paint(start);
+ assert.deepEqual(chart.rows,aggregate(raw,3,60,(start+600)*1000));
+ assert.deepEqual(chart.lines[0].states.map(s=>s.point).filter(p=>p.value!==undefined),emaSeries(chart.rows,2));
+ assert.deepEqual(chart.lines[1].states.map(s=>s.point),sessionVWAP(chart.rows,'stocks',180));assert.ok(updates.some(([,historical])=>historical));
+});

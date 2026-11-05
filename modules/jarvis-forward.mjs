@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto';
+import {backupOriginal} from './record-archive.mjs';
 import {resolveEma9Paper,EMA9_PROTOCOL,EMA9_VWAP} from './ema9-vwap.mjs';
 import {selectedWinEstimate} from './signal-policy.mjs';
 import {createJarvisPaper} from './jarvis-paper-core.mjs';
@@ -23,8 +25,23 @@ function coreContext(row,settings,candles=[],features=row.features||{},predictio
  return {state,api};
 }
 export class JarvisForward extends AutoPaper{
- constructor(options){super(options);this.minuteAsset=options.minuteAsset||((row,assets)=>assets[row.symbol]);this.data.forwardSettings??={};for(const row of this.data.rows)if(row.forwardProtocol===PROTOCOL)row.settings=this.data.forwardSettings[row.profile]||row.settings;this.minuteRefresh=new Map();this.refreshing=false;}
- save(){if(!this.file)return;const rows=this.data.rows.map(row=>{if(row.forwardProtocol!==PROTOCOL)return row;const {settings,...stored}=row;return stored;});writeJSON(this.file,{...this.data,rows});}
+ constructor(options){super(options);this.minuteAsset=options.minuteAsset||((row,assets)=>assets[row.symbol]);this.data.forwardSettings??={};for(const row of this.data.rows)if([PROTOCOL,EMA9_PROTOCOL].includes(row.forwardProtocol)){
+   if(row.forwardProtocol===EMA9_PROTOCOL&&row.settings){
+    this.inlineEmaSettings=true;
+    const pooled=this.data.forwardSettings[row.profile];
+    // Older profiles can differ in settings excluded from the cohort hash.
+    // Keep those exact frozen variants instead of silently substituting one.
+    if(pooled&&JSON.stringify(pooled)!==JSON.stringify(row.settings)){
+     const ref=createHash('sha256').update(JSON.stringify(row.settings)).digest('hex');
+     (this.data.emaSettingsVariants??={})[ref]??=row.settings;row.emaSettingsRef=ref;
+    }
+    this.data.forwardSettings[row.profile]??=row.settings;
+   }
+   row.settings=row.emaSettingsRef?this.data.emaSettingsVariants?.[row.emaSettingsRef]:this.data.forwardSettings[row.profile]||row.settings;
+   if(row.forwardProtocol===EMA9_PROTOCOL&&!row.settings)throw Error('Missing EMA9 paper settings for '+row.id);
+  }
+  this.minuteRefresh=new Map();this.refreshing=false;}
+ save(){if(!this.file)return;if(this.inlineEmaSettings){backupOriginal(this.file,'.before-ema-settings-pool');this.inlineEmaSettings=false;}const rows=this.data.rows.map(row=>{if(![PROTOCOL,EMA9_PROTOCOL].includes(row.forwardProtocol)||!this.data.forwardSettings[row.profile])return row;const {settings,...stored}=row;return stored;});writeJSON(this.file,{...this.data,rows});}
  // Stock-chart outcomes train confidence without appearing as share trades.
  observeWithSetupLearning(signals,assets,now=this.now()){
   return this.observe(signals.map(s=>s.market==='stocks'?{...s,learningOnly:true}:s),assets,now);

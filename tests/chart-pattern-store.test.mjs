@@ -14,7 +14,7 @@ const fixture=()=>({kind:'rectangle',name:'Rectangle',dir:1,anchorTime:T,startTi
 test('OFF skips work and preserves history; toggles, settings and identities survive restarts',()=>{const {dir,store}=tempStore();try{
  const b=boundary(0,0),now=(b.at(-1).time+300)*1000,asset={symbol:'TEST',market:'crypto',source:'Fixture',base:300,bars:b,replay:true};assert.equal(store.evaluate(asset,5,now).recordCount,0);
  store.configure({...S,enabled:true,frames:[5]});store.evaluate(asset,5,now,10000);assert.ok(store.records.size);const ids=[...store.records.keys()];store.configure({enabled:false});assert.deepEqual(store.evaluate(asset,5,now).records,[]);assert.deepEqual([...store.records.keys()],ids);
- const restart=new ChartPatternStore(dir);assert.equal(restart.data.settings.enabled,false);restart.configure({enabled:true});restart.evaluate(asset,5,now,10000);assert.deepEqual([...restart.records.keys()].sort(),ids.sort());
+ store.flush();const restart=new ChartPatternStore(dir);assert.equal(restart.data.settings.enabled,false);restart.configure({enabled:true});restart.evaluate(asset,5,now,10000);assert.deepEqual([...restart.records.keys()].sort(),ids.sort());
 }finally{fs.rmSync(dir,{recursive:true,force:true});}});
 test('Replay equals incremental feed; future extensions never rewrite original confirmation',()=>{const first=tempStore(),second=tempStore();try{
  for(const st of [first.store,second.store])st.configure({...S,enabled:true,frames:[5]});
@@ -40,7 +40,7 @@ test('Pending MA/VWAP retests and zone rejections wait for their recorded resump
 }finally{fs.rmSync(dir,{recursive:true,force:true});}}});
 test('Analysis leaves strategy output, cohort, settings and input OHLCV untouched',()=>{const {dir,store}=tempStore();try{
  const b=boundary(0,.05),settings=structuredClone(DEFAULTS),asset={symbol:'BTC-USD',market:'crypto',source:'Fixture',base:300,bars:b,replay:true},input={...asset,tf:5,settings,now:(b.at(-1).time+300)*1000},before=evaluate(input),clone=structuredClone(input),profile=settingsProfile(settings);
- store.configure({...S,enabled:true,frames:[5]});store.evaluate(asset,5,input.now,10000);assert.deepEqual(evaluate(input),before);store.configure({enabled:false});assert.deepEqual(evaluate(input),before);assert.deepEqual(input,clone);assert.equal(settingsProfile(settings),profile);assert.deepEqual(fs.readdirSync(dir),['chart-pattern-analysis.json']);
+ store.configure({...S,enabled:true,frames:[5]});store.evaluate(asset,5,input.now,10000);assert.deepEqual(evaluate(input),before);store.configure({enabled:false});assert.deepEqual(evaluate(input),before);assert.deepEqual(input,clone);assert.equal(settingsProfile(settings),profile);store.flush();assert.deepEqual(fs.readdirSync(dir),['chart-pattern-analysis.json']);
  const code=fs.readFileSync(new URL('../modules/chart-pattern-store.mjs',import.meta.url),'utf8');assert.doesNotMatch(code,/paper\.observe|learning\.observe|recordTopPickAlert|newlyDetected\.push|fetch\(/);
 }finally{fs.rmSync(dir,{recursive:true,force:true});}});
 test('Corrupt history fails closed and preserves original bytes',()=>{const {dir}=tempStore();try{const file=path.join(dir,'chart-pattern-analysis.json');fs.writeFileSync(file,'broken');const store=new ChartPatternStore(dir);assert.equal(store.data.settings.enabled,false);assert.ok(store.error);assert.throws(()=>store.configure({enabled:true}));assert.equal(fs.readFileSync(file,'utf8'),'broken');}finally{fs.rmSync(dir,{recursive:true,force:true});}});

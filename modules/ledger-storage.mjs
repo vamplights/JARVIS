@@ -8,9 +8,12 @@ function unpack(value){return value?.$gzipJSON?JSON.parse(gunzipSync(Buffer.from
 
 const frozen=value=>{if(value&&typeof value==='object'&&!Object.isFrozen(value)){for(const v of Object.values(value))frozen(v);Object.freeze(value);}return value;};
 function reference(settings){let found=cache.get(settings);if(!found){const text=JSON.stringify(settings);found={key:createHash('sha256').update(text).digest('hex'),settings:frozen(settings)};cache.set(settings,found);}return found;}
-export function restoreLedger(stored){
- const {settingsPool={},storageSchema,...data}=stored,pool=new Map();
- data.signals=(data.signals||[]).map(storedRow=>{const row={...storedRow};for(const field of frozenFields)if(row[field])row[field]=unpack(row[field]);if(!row.settings)return row;let settings;if(row.settings.$settingsRef){settings=settingsPool[row.settings.$settingsRef];if(!settings)throw Error('Missing frozen settings reference');}else settings=row.settings;const ref=reference(settings);if(!pool.has(ref.key))pool.set(ref.key,frozen(settings));return {...row,settings:pool.get(ref.key)};});return data;
+export function restoreLedger(stored,lazy=false){
+ const {settingsPool={},storageSchema,archiveSegments,...data}=stored,pool=new Map();
+ data.signals=(data.signals||[]).map(storedRow=>{const row={...storedRow};for(const field of frozenFields)if(row[field]){
+  if(lazy&&row[field].$gzipJSON){const encoded=row[field];Object.defineProperty(row,field,{enumerable:true,configurable:true,get(){const value=unpack(encoded);Object.defineProperty(this,field,{value,writable:true,enumerable:true,configurable:true});return value;}});}
+  else row[field]=unpack(row[field]);
+ }if(!row.settings)return row;let settings;if(row.settings.$settingsRef){settings=settingsPool[row.settings.$settingsRef];if(!settings)throw Error('Missing frozen settings reference');}else settings=row.settings;const ref=reference(settings);if(!pool.has(ref.key))pool.set(ref.key,frozen(settings));row.settings=pool.get(ref.key);return row;});return data;
 }
 export function ledgerForStorage(data){
  const settingsPool={},signals=(data.signals||[]).map(row=>{const result={...row};for(const field of frozenFields)if(result[field])result[field]=pack(result[field],field);if(!row.settings)return result;const ref=reference(row.settings);settingsPool[ref.key]=ref.settings;return {...result,settings:{$settingsRef:ref.key}};});return {...data,signals,storageSchema:2,settingsPool};

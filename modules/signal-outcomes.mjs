@@ -6,11 +6,11 @@ const returnCost=(row,exit,quote)=>{
  const c=row.costs,exitCosts=marketCosts({costs:{[row.market]:c}},row.market,quote);
  return ((row.entry+exit)*(c.feeBps+c.slippageBps)+(row.entry*c.spreadBps+exit*exitCosts.spreadBps)/2)/10000;
 };
-export function observeSignalOutcomes(data,signals,assets,settings,now){
+export function observeSignalOutcomes(data,signals,assets,settings,now,archived){
  data.observations??=[];const profile=settingsProfile(settings),known=new Set(data.observations.map(r=>r.key));let changed=false;
  for(const s of signals){
   if(s.paperEligible===false||s.conflicted||s.replay||assets[s.symbol]?.replay||assets[s.symbol]?.snapshot||!['CONFIRMED','WATCH','SETUP FORMING','STALE','BLOCKED BY RISK RULE'].includes(s.status)||!(s.price>0&&s.stop>0&&s.target>0)||![-1,1].includes(s.dir))continue;
-  const cohort=s.status==='CONFIRMED'?'confirmed':'raw',key=[s.id,cohort,profile].join('|');if(known.has(key))continue;known.add(key);
+  const cohort=s.status==='CONFIRMED'?'confirmed':'raw',key=[s.id,cohort,profile].join('|');if(known.has(key)||archived?.has(key))continue;known.add(key);
   data.observations.push({protocol:'signal-r-v1',strategies:s.strategies||[s.strategy],confluenceCount:s.confluenceCount||1,source:s.source,fallback:!!s.fallback,conflicted:!!s.conflicted,candleClose:s.confirmedAt,features:signalFeatures(s),prediction:s.profitEstimate?.probability??null,modelVersion:s.profitEstimate?.version??null,alertedAt:s.alertedAt??null,key,id:s.id,profile,setupKeys:s.setupKeys||[s.setupKey],symbol:s.symbol,market:s.market,strategy:s.strategy,tf:s.tf,direction:s.dir>0?'long':'short',dir:s.dir,cohort,statusAtObservation:s.status,targetCapped:s.targetCapped===true||s.rr<settings.minRR,regime:s.regime||'Unknown',adx:s.adx??null,efficiency:s.efficiency??null,stopATR:s.stopATR??null,etHour:+parts(now,'America/New_York').hour,observedAt:now,referenceSize:s.size?.size??null,signalEntry:s.price,stop:s.stop,target:s.target,rr:s.rr,expiresAt:now+s.tf*12*60000,outcome:'awaiting forward entry',entry:null,mfeR:0,maeR:0,lastBarEnd:now});changed=true;
  }
  for(const row of data.observations){

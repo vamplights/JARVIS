@@ -1,11 +1,24 @@
 import {aggregate,vwap,parts,session,atr,marketCosts,roundTripCost} from './engine.mjs';
 export const EMA9_VWAP='ema9-vwap-retest';
 export const EMA9_PROTOCOL='ema9-vwap-paper-v1';
-export function strategySeries(bars,base,settings,now){
+const seriesCache=new Map();
+const SERIES_FIELDS=['time','open','high','low','close','volume','complete','closeTime'];
+export const ENTRY_DATA_GRACE_MS=15*60000;
+export function strategySeries(bars,base,settings,now,symbol,source=''){
+
  if(![60,180].includes(base))return [];
- const rth=bars.filter(b=>{const h=session(b.time*1000,settings);return h.regular&&b.complete!==false;});
+ // A partial 3m bucket cannot affect the completed strategy series. Compare
+ // completed inputs as well, so late backfills and provider corrections invalidate it.
+ const cutoff=Math.floor(now/180000)*180;
+ const completed=bars.filter(b=>b.time+base<=cutoff&&b.complete!==false);
+ const key=symbol&&JSON.stringify([symbol,source,base,settings.extraClosures,settings.earlyCloses]);
+ const previous=key&&seriesCache.get(key);
+ if(previous&&previous.inputs.length===completed.length&&completed.every((b,i)=>SERIES_FIELDS.every(k=>b[k]===previous.inputs[i][k])))return previous.series;
+ const rth=completed.filter(b=>{const h=session(b.time*1000,settings);return h.regular&&b.complete!==false;});
  const rows=aggregate(rth,3,base,now).filter(b=>b.complete);let smooth=null;const ev=rows.map((b,i)=>{smooth=smooth==null?b.close:b.close*.2+smooth*.8;return i<8?null:smooth;}),vw=vwap(rows,'stocks',180);
- return rows.map((b,i)=>({...b,ema:ev[i],vwap:vw[i],date:parts(b.time*1000,'America/New_York').date}));
+ const series=rows.map((b,i)=>({...b,ema:ev[i],vwap:vw[i],date:parts(b.time*1000,'America/New_York').date}));
+ if(key){seriesCache.set(key,{inputs:completed.map(b=>({...b})),series});if(seriesCache.size>128)seriesCache.delete(seriesCache.keys().next().value);}
+ return series;
 }
 export function retestSetups(rows){
  const found=[];let cross=null;
@@ -21,9 +34,9 @@ export function retestSetups(rows){
  }
  return found;
 }
-export function ema9Signals({symbol,market,bars,base=60,tf,settings,now,replay=false}){
+export function ema9Signals({symbol,market,bars,base=60,tf,settings,now,source='',replay=false}){
  if(market!=='stocks'||tf!==3||!settings.strategies.includes(EMA9_VWAP)||!session(now,settings).regular)return [];
- const rows=strategySeries(bars,base,settings,now),last=rows.at(-1),av=atr(rows).at(-1)||.01;
+ const rows=strategySeries(bars,base,settings,now,symbol,source),last=rows.at(-1),av=atr(rows).at(-1)||.01;
  return retestSetups(rows).filter(x=>x.bar===last&&now<(x.bar.time+360)*1000).map(({bar,cross,dir})=>{
   const price=dir>0?bar.high:bar.low,stop=Math.round((dir>0?bar.low-.01:bar.high+.01)*10000)/10000,key=[symbol,EMA9_VWAP,cross.time].join(':'),size=Math.floor(Math.min(settings.capital*.005/Math.abs(price-stop),settings.capital/price));
   return {id:key,setupKey:key,setupKeys:[key],symbol,market,tf,strategy:EMA9_VWAP,name:'EMA9 + VWAP · cross & retest',dir,direction:dir>0?'bullish':'bearish',price,entry:[price,price],stop,initialStop:stop,target:null,fixedTargetDisabled:true,exitEMA:9,entryOrder:'stop',entryValidAfter:(bar.time+180)*1000,expiresAt:(bar.time+360)*1000,confirmedAt:(bar.time+180)*1000,crossAt:cross.time*1000,status:'CONFIRMED',score:100,factors:[],warnings:[],atr:av,rr:null,netRR:null,costsAsRiskPct:null,targetCapped:false,regime:'EMA9/VWAP retest',rvol:1,trendAlignment:true,higherAlignment:true,extension:0,size:{size,plannedRisk:size*Math.abs(price-stop),notional:size*price},horizon:'intraday',replay,stopReason:'Confirmation candle extreme plus $0.01; fixed',exitNote:'Fixed initial stop or completed 3m close across EMA9; next available price. Close before session end.'};
@@ -34,19 +47,20 @@ export function resolveEma9Paper(store,signals,assets,settings,profile,now){
  let changed=false;const known=new Set(store.rows.map(r=>r.id));
  for(const s of signals.filter(s=>s.strategy===EMA9_VWAP&&s.status==='CONFIRMED'&&!s.replay&&!s.fallback&&!s.legacyProfile)){
   const id=[s.id,profile,EMA9_PROTOCOL].join('|');if(known.has(id)||now>=s.expiresAt)continue;known.add(id);
-  store.rows.push({id,signalId:s.id,profile,forwardProtocol:EMA9_PROTOCOL,strategy:EMA9_VWAP,strategies:[EMA9_VWAP],symbol:s.symbol,market:'stocks',tf:3,dir:s.dir,source:s.source,exitStyle:'fixed',horizon:'intraday',state:'awaiting entry',signalEntry:s.price,initialStop:s.stop,stop:s.stop,target:null,targetDisabled:true,observedAt:now,validAfter:s.entryValidAfter,expiresAt:s.expiresAt,settings:structuredClone(settings),costs:marketCosts(settings,'stocks'),risk:settings.capital*.005,mfeR:0,maeR:0});changed=true;
+  store.forwardSettings??={};store.forwardSettings[profile]??=structuredClone(settings);
+  store.rows.push({id,signalId:s.id,profile,forwardProtocol:EMA9_PROTOCOL,strategy:EMA9_VWAP,strategies:[EMA9_VWAP],symbol:s.symbol,market:'stocks',tf:3,dir:s.dir,source:s.source,exitStyle:'fixed',horizon:'intraday',state:'awaiting entry',signalEntry:s.price,initialStop:s.stop,stop:s.stop,target:null,targetDisabled:true,observedAt:now,validAfter:s.entryValidAfter,expiresAt:s.expiresAt,settings:store.forwardSettings[profile],costs:marketCosts(settings,'stocks'),risk:settings.capital*.005,mfeR:0,maeR:0});changed=true;
  }
  const rows=store.rows.filter(r=>r.forwardProtocol===EMA9_PROTOCOL),events=[];
  for(const r of rows){if(r.closedAt||['missed fill','unmeasurable'].includes(r.state))continue;const a=assets[r.symbol];if(!a||a.source!==r.source||a.base!==60||a.replay)continue;
-  const series=strategySeries(a.bars,60,r.settings,now);r._series=series;
-  for(const b of a.bars.filter(b=>b.complete!==false&&(b.time+60)*1000<=now&&b.time*1000>=Math.max(r.validAfter,r.observedAt,r.entryAt||0)&&b.time*1000>=(r.lastProcessed??0)).sort((a,b)=>a.time-b.time))events.push({r,b,time:b.time*1000});
+  const series=strategySeries(a.bars,60,r.settings,now,r.symbol,r.source);r._series=series;
+  for(const b of a.bars.filter(b=>b.complete!==false&&(b.time+60)*1000<=now&&b.time*1000>=Math.max(r.validAfter,r.observedAt,r.entryAt||0)&&(r.entryAt?b.time*1000>=(r.lastProcessed??0):!r.entryMinutes?.includes(b.time))).sort((a,b)=>a.time-b.time))events.push({r,b,time:b.time*1000});
   const q=a.quote;if(q?.price>0&&q.time<=now&&now-q.time<=settings.stockStaleSeconds*1000&&q.time>Math.max(r.observedAt,r.lastQuoteAt||0,r.lastProcessed||0))events.push({r,time:q.time,b:{time:q.time/1000,open:q.price,high:q.price,low:q.price,close:q.price,quote:true}});
  }
  events.sort((a,b)=>a.time-b.time||a.r.observedAt-b.r.observedAt||a.r.id.localeCompare(b.r.id));
  function close(r,price,time,why){const unit=(price-r.entry)*r.dir-roundTripCost(r.entry,price,'stocks',{costs:{stocks:r.costs}});Object.assign(r,{exit:price,closedAt:time,exitReason:why,pnl:unit*r.size,realizedR:unit/Math.abs(r.entry-r.initialStop),state:'closed',unrealized:0});}
- for(const {r,b,time} of events){if(r.closedAt||r.state==='missed fill')continue;const h=session(time,r.settings),day=parts(time,'America/New_York').date;if(!h.regular)continue;if(b.quote)r.lastQuoteAt=time;else r.lastProcessed=time+60000;changed=true;
+ for(const {r,b,time} of events){if(r.closedAt||r.state==='missed fill')continue;const h=session(time,r.settings),day=parts(time,'America/New_York').date;if(!h.regular)continue;if(!r.entryAt&&time>=r.expiresAt)continue;
+  if(b.quote)r.lastQuoteAt=time;else {r.lastProcessed=Math.max(r.lastProcessed||0,time+60000);if(!r.entryAt)(r.entryMinutes??=[]).push(b.time);}changed=true;
   if(!r.entryAt){
-   if(time>=r.expiresAt){r.state='missed fill';r.reason='Next candle did not trigger entry';continue;}
    const through=r.dir>0?b.high>r.signalEntry:b.low<r.signalEntry;if(!through)continue;
    const prior=rows.filter(x=>x.entryAt&&parts(x.entryAt,'America/New_York').date===day&&x.entryAt<=time),active=rows.some(x=>x!==r&&x.entryAt<=time&&x.state!=='unmeasurable'&&(!x.closedAt||x.closedAt>time));
    if(active||prior.length>=2){r.state='missed fill';r.reason=active?'One position at a time':'Two trades per session';continue;}
@@ -61,6 +75,10 @@ export function resolveEma9Paper(store,signals,assets,settings,profile,now){
   const c=b.quote?r._series.filter(c=>(c.time+180)*1000<=time&&(c.time+180)*1000>r.entryAt).at(-1):r._series.find(c=>(c.time+180)*1000===time+60000);if(c&&r.dir*(c.close-c.ema)<0)r.pendingEMAExit=true;
   r.lastMark=b.close;r.lastMarkAt=time+60000;r.unrealized=((b.close-r.entry)*r.dir-roundTripCost(r.entry,b.close,'stocks',{costs:{stocks:r.costs}}))*r.size;
  }
- for(const r of rows){delete r._series;if(r.state==='awaiting entry'&&now>=r.expiresAt){r.state='missed fill';r.reason='Next candle expired without an observed trigger';changed=true;}if(r.state==='active'){const p=parts(r.entryAt,'America/New_York'),end=Math.floor(r.entryAt/60000)*60000+(session(r.entryAt,r.settings).close-p.minutes)*60000;if(now>=end){r.state='unmeasurable';r.reason='Session exit price unavailable; no overnight position or invented fill';changed=true;}}}
+ for(const r of rows){delete r._series;if(r.state==='awaiting entry'&&now>=r.expiresAt){const start=Math.ceil(Math.max(r.validAfter,r.observedAt)/60000)*60,end=r.expiresAt/1000;
+   let covered=start<end;for(let t=start;t<end;t+=60)if(!r.entryMinutes?.includes(t)){covered=false;break;}
+   if(covered){r.state='missed fill';r.reason='Complete next-candle observations did not trigger entry';changed=true;}
+   else if(now>=r.expiresAt+ENTRY_DATA_GRACE_MS){r.state='unmeasurable';r.reason='Entry window candles unavailable after 15-minute data grace period';changed=true;}
+  }if(r.state==='active'){const p=parts(r.entryAt,'America/New_York'),end=Math.floor(r.entryAt/60000)*60000+(session(r.entryAt,r.settings).close-p.minutes)*60000;if(now>=end){r.state='unmeasurable';r.reason='Session exit price unavailable; no overnight position or invented fill';changed=true;}}}
  return changed;
 }

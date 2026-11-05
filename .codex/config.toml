@@ -1,10 +1,12 @@
 # Project defaults; explicit chat/CLI selections can override the coordinator.
 model = "gpt-6-luna"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "low"
 
+model_verbosity = "medium"
+model_reasoning_summary = "concise"
 [agents]
 enabled = true
 default_subagent_model = "gpt-6-luna"
-default_subagent_reasoning_effort = "xhigh"
+default_subagent_reasoning_effort = "low"
 # Capacity for retained handoffs, not permission to run four workers in parallel.
 max_concurrent_threads_per_session = 4

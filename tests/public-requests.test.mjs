@@ -85,3 +85,5 @@ test('Queued same-host requests honor a new rate-limit cooldown and resume after
  assert.equal(await (await requests.fetch(history)).text(),'ok');
  assert.equal(calls,2);
 });
+
+test('Overview Coinbase ticker requests use quote freshness rather than the fifteen-minute history cache',async()=>{let calls=0;const {requests,advance}=fixture(async()=>new Response(String(++calls))),url='https://api.exchange.coinbase.com/products/BTC-USD/ticker';assert.equal(await (await requests.fetch(url)).text(),'1');advance(29000);assert.equal(await (await requests.fetch(url)).text(),'1');advance(1000);assert.equal(await (await requests.fetch(url)).text(),'2');});

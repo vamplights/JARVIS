@@ -1,4 +1,7 @@
 import test from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import assert from 'node:assert/strict';
 import {DEFAULTS,migrateBetaSettings,strategyEnabled,evaluate,backtest} from '../modules/engine.mjs';
 import {retestSetups,strategySeries,resolveEma9Paper,EMA9_VWAP,EMA9_PROTOCOL} from '../modules/ema9-vwap.mjs';
@@ -60,4 +63,34 @@ test('EMA close exit fills at next available open, with early-close liquidation 
  const s=settings(),t=start+1800000,store={rows:[]};resolveEma9Paper(store,[sig()],{},s,'p',t);resolveEma9Paper(store,[],{QQQ:asset([bar(30,{high:101,low:99.5})])},s,'p',t+60000);
  const r=store.rows[0];r.pendingEMAExit=true;resolveEma9Paper(store,[],{QQQ:asset([bar(31,{open:102,high:103,low:98})])},s,'p',t+120000);assert.equal(r.exit,102);assert.match(r.exitReason,/EMA9/);
  const early=settings();early.earlyCloses['2026-10-27']='13:00';const second={rows:[]};resolveEma9Paper(second,[sig()],{},early,'p',t);resolveEma9Paper(second,[],{QQQ:asset([bar(30,{high:101,low:99.5}),bar(209,{open:102,low:98})])},early,'p',start+210*60000);assert.equal(second.rows[0].exit,102);assert.equal(second.rows[0].exitReason,'session close');
+});
+
+test('Late entry candles fill after expiration, gaps wait for evidence, and absent data ages out',()=>{
+ const s=settings(),t=start+1800000,store={rows:[]},quiet=i=>bar(i,{high:100});
+ resolveEma9Paper(store,[sig()],{},s,'p',t);
+ resolveEma9Paper(store,[],{QQQ:{...asset([quiet(32)]),quote:{price:101,time:t+181000}}},s,'p',t+181000);
+ assert.equal(store.rows[0].state,'awaiting entry');
+ resolveEma9Paper(store,[],{QQQ:asset([quiet(30),bar(31,{high:101}),quiet(32)])},s,'p',t+240000);
+ assert.equal(store.rows[0].entryAt,t+60000);
+ const missing={rows:[]};resolveEma9Paper(missing,[sig()],{},s,'p',t);resolveEma9Paper(missing,[],{},s,'p',t+18*60000);assert.equal(missing.rows[0].state,'unmeasurable');
+});
+test('EMA cache reuses completed series within a bucket and invalidates revised history and new closures',()=>{
+ const s=settings(),bars=Array.from({length:12},(_,i)=>bar(i)),series=now=>strategySeries(bars,60,s,now,'TEST','fixture');
+ const first=series(start+9*60000);assert.strictEqual(series(start+11*60000),first);
+ const next=series(start+12*60000);assert.notStrictEqual(next,first);assert.equal(next.length,4);
+ bars[0]={...bars[0],volume:0};assert.notStrictEqual(series(start+12*60000),next);
+});
+test('Legacy EMA settings migrate, retain distinct frozen variants, and resolve after restart',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-ema-pool-'));
+ try{
+  const s=settings(),t=start+1800000,store={rows:[]};
+  resolveEma9Paper(store,[sig('QQQ'),sig('SPY')],{},s,'p',t);
+  const rows=structuredClone(store.rows);rows[1].settings=structuredClone(s);rows[1].settings.sidebarSubtitle='other';
+  const file=path.join(dir,'auto-paper.json'),original=JSON.stringify({rows,forwardSettings:{}});fs.writeFileSync(file,original);
+  const p=new JarvisForward({dir,settings:()=>s});p.save();
+  assert.equal(fs.readFileSync(file+'.before-ema-settings-pool','utf8'),original);
+  const saved=JSON.parse(fs.readFileSync(file));assert.ok(saved.rows.every(r=>!r.settings));assert.deepEqual(saved.forwardSettings.p,s);
+  const restored=new JarvisForward({dir,settings:()=>s});assert.deepEqual(restored.data.rows.map(r=>r.settings),rows.map(r=>r.settings));
+  restored.observe([],{QQQ:asset([bar(30)])},t+60000);assert.ok(restored.data.rows[0].entryAt);restored.flush();
+ }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
