@@ -35,17 +35,23 @@ instructions and validator checks, and is therefore behavioral rather than a
 runtime-enforced block. The Astra role instructions also require stopping if the
 primary invokes it without the task-specific approval.
 
-The four standalone agent files pin their defaults. If the spawn interface exposes
+All four roles default to low and keep every catalog-supported effort available.
+Routine work stays low. Luna and Terra increase only for concrete task or visual
+reasoning complexity; Sol follows its stricter low preference, reserving medium
+or high for clear need or a demonstrated failed attempt; Astra increases only
+for concrete complexity or a failed attempt. Higher levels remain available but
+are not routine selections. The four standalone agent files pin their defaults.
+If the spawn interface exposes
 custom roles, select the role when its default effort fits. If it exposes only
 model and effort, pass both explicitly and supply the role instructions, using a
 compact fresh handoff (`fork_turns="none"`). For any non-default effort, use an untyped/default worker with explicit model
 and effort plus the role instructions (`fork_turns="none"`); named roles keep
-their pinned defaults. Choose the lowest supported effort likely to handle the task and
-increase only for concrete need. Sol should stay at low for normal and moderate
+their pinned defaults. Choose the lowest supported effort likely to handle the
+task and increase only for concrete need. Sol stays low for normal and moderate
 work, including ordinary multi-file and API tasks. Use medium or high only when
 scope, ambiguity, or critical risk clearly exceeds low capability, or a concrete
 failed attempt demonstrates the need; task category alone is not enough. Avoid
-reflexive medium and reflexive `xhigh`, `max`, or `ultra`.
+reflexive higher efforts for every role.
 
 ## Automation and its limits
 
@@ -172,8 +178,8 @@ no runtime database was edited. Recorded IDs are in the verification report.
 Routing optimizes likely total task cost using a heuristic; measured dollar
 savings or a globally optimal route are not proven. Costs include the primary's
 classification/review tokens, the worker's instructions/tools, reasoning, tests,
-retries and escalation. Luna's required Extra High can cost more than a lower
-effort setting, especially for tiny edits. Fresh compact handoffs, one active
+retries and escalation. Selecting higher effort than the task needs can cost
+more, especially for tiny edits. Fresh compact handoffs, one active
 worker, focused reads and no default extra reviewer reduce overhead. Existing
 plugins/tools remain enabled, so their context overhead remains. Subscription
 usage is not the same as multiplying public API token prices.

@@ -95,14 +95,27 @@ def local_checks(root, report):
             check(report, "astra-approval:role-gate",
                   all(phrase in instructions for phrase in required),
                   "Astra role requires task-specific approval before proceeding")
-        if role == "sol":
-            instructions = value.get("developer_instructions", "")
+        instructions = value.get("developer_instructions", "")
+        if role == "luna":
+            required = ("pinned default is low", "Keep routine work low",
+                        "increase only when concrete task complexity requires it",
+                        "Any supported effort remains available")
+        elif role == "terra":
+            required = ("pinned default is low", "Keep routine UI work low",
+                        "concrete visual reasoning complexity requires it",
+                        "Any supported effort remains available")
+        elif role == "sol":
             required = ("Keep low for normal and moderate work",
                         "Use medium or high only when scope, ambiguity, or critical risk clearly exceeds low capability",
-                        "task category alone is not enough")
-            check(report, "policy:sol:low-bias",
-                  all(phrase in instructions for phrase in required),
-                  "Sol instructions reserve medium/high for clear need")
+                        "task category alone is not enough",
+                        "Any supported effort remains available")
+        else:
+            required = ("pinned default is low", "choose the lowest likely to handle the task",
+                        "increase only for concrete complexity or a failed attempt",
+                        "Any supported effort is allowed")
+        check(report, f"policy:{role}:low-bias",
+              all(phrase in instructions for phrase in required),
+              {"required": list(required)})
     catalog_path = Path.home() / ".codex/models_cache.codex_work_desktop.json"
     try:
         catalog = json.loads(catalog_path.read_text(encoding="utf-8"))

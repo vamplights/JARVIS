@@ -13,19 +13,19 @@ function harness(){
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('Settings autosave debounces completed changes and serializes the newest snapshot',async()=>{
- const h=harness();h.change();h.form.value.capital=102;h.change();assert.equal(h.timers.size,1);assert.equal(h.requests.length,0);h.tick();assert.equal(h.requests.length,1);assert.equal(h.requests[0].value.capital,102);
- h.form.value.capital=103;h.change();h.tick();assert.equal(h.requests.length,1);h.form.value.capital=104;h.change();h.tick();
+ const h=harness();h.change();h.form.value.capital=102;h.change();assert.equal(h.timers.size,1);assert.equal(h.requests.length,0);h.tick();await settle();assert.equal(h.requests.length,1);assert.equal(h.requests[0].value.capital,102);
+ h.form.value.capital=103;h.change();h.tick();await settle();assert.equal(h.requests.length,1);h.form.value.capital=104;h.change();h.tick();await settle();
  h.requests[0].resolve({ok:true});await settle();assert.equal(h.requests.length,2);assert.equal(h.requests[1].value.capital,104);assert.equal(h.state.settings.capital,102);
  h.requests[1].resolve({ok:true});await settle();assert.equal(h.state.settings.capital,104);assert.equal(h.status.textContent,'Settings saved.');
 });
-test('Typing cancels queued saves; incomplete and invalid settings never reach the endpoint',()=>{
- const h=harness();h.change();h.handlers.input({target:{form:h.form}});h.tick();assert.equal(h.requests.length,0);
- h.form.checkValidity=()=>false;h.change();h.tick();assert.equal(h.requests.length,0);assert.match(h.status.textContent,/invalid settings/);
- h.form.checkValidity=()=>true;h.form.invalid=true;h.change();h.tick();assert.equal(h.requests.length,0);assert.match(h.status.textContent,/Invalid capital/);
+test('Typing cancels queued saves; incomplete and invalid settings never reach the endpoint',async()=>{
+ const h=harness();h.change();h.handlers.input({target:{form:h.form}});h.tick();await settle();assert.equal(h.requests.length,0);
+ h.form.checkValidity=()=>false;h.change();h.tick();await settle();assert.equal(h.requests.length,0);assert.match(h.status.textContent,/invalid settings/);
+ h.form.checkValidity=()=>true;h.form.invalid=true;h.change();h.tick();await settle();assert.equal(h.requests.length,0);assert.match(h.status.textContent,/Invalid capital/);
 });
 test('Save errors stay visible, explicit Save retries, and venue preset is captured before saving',async()=>{
- const h=harness();h.change('cryptoVenue');h.tick();assert.equal(h.requests[0].value.venuePreset,true);h.requests[0].reject(Error('offline'));await settle();assert.match(h.status.textContent,/could not be saved: offline/);assert.equal(h.state.settings.capital,100);
- h.context.save(h.form,true);assert.equal(h.requests.length,2);h.requests[1].resolve({ok:true});await settle();assert.equal(h.state.settings.capital,101);
+ const h=harness();h.change('cryptoVenue');h.tick();await settle();assert.equal(h.requests[0].value.venuePreset,true);h.requests[0].reject(Error('offline'));await settle();assert.match(h.status.textContent,/could not be saved: offline/);assert.equal(h.state.settings.capital,100);
+ h.context.save(h.form,true);await settle();assert.equal(h.requests.length,2);h.requests[1].resolve({ok:true});await settle();assert.equal(h.state.settings.capital,101);
 });
 test('Auto and explicit saves share the complete converter and settings refresh preserves the form',()=>{
  const conversion=app.slice(app.indexOf('function settingsFormValue('),app.indexOf('let settingsSaveTimer='));
@@ -62,7 +62,7 @@ test('Complete real form conversion validates risk, toggles, watchlists, arrays 
 test('A text or number input followed by Tab blur saves even when change is absent; duplicate commit is coalesced',async()=>{
  const h=harness(),control={form:h.form,name:'maxTrades',tagName:'INPUT',type:'number'};
  h.handlers.input({target:control});assert.equal(h.status.textContent,'Unsaved changes');h.form.value={maxTrades:4};h.handlers.focusout({target:control});assert.equal(h.status.textContent,'Saving changes…');assert.equal(h.timers.size,1);
- h.handlers.change({target:control});h.handlers.focusout({target:control});assert.equal(h.timers.size,1);h.tick();assert.equal(h.requests.length,1);assert.equal(h.requests[0].value.maxTrades,4);
+ h.handlers.change({target:control});h.handlers.focusout({target:control});assert.equal(h.timers.size,1);h.tick();await settle();assert.equal(h.requests.length,1);assert.equal(h.requests[0].value.maxTrades,4);
  h.requests[0].resolve({ok:true});await settle();assert.equal(h.status.textContent,'Settings saved.');
- h.handlers.focusout({target:control});h.tick();assert.equal(h.requests.length,1);
+ h.handlers.focusout({target:control});h.tick();await settle();assert.equal(h.requests.length,1);
 });

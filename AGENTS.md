@@ -39,13 +39,17 @@ role selection and its pinned default effort is suitable. If it exposes only
 `model` and `reasoning_effort`, explicitly pass the values above, use
 `fork_turns="none"`, and include the selected role's short instructions in the
 handoff. Never rely on model/effort inheritance. Read that role file only, not
-every role. Full-history forks cannot change models in some clients. Choose the lowest supported effort likely to handle the task, increasing it only
-when concrete task difficulty or a failed attempt requires it. For Sol, keep low
-for normal and moderate work, including ordinary multi-file and API tasks. Raise
-to medium or high only when scope, ambiguity, or critical risk clearly exceeds
-low capability, or a concrete failed attempt demonstrates the need. Avoid
-reflexive medium for task category alone and avoid reflexive `xhigh`, `max`, or
-`ultra` selections. For any non-default effort, use an
+every role. Full-history forks cannot change models in some clients. Choose the
+lowest supported effort likely to handle the task and bias every role towards
+low. Luna may use medium for concrete complexity and reserves high, `xhigh`, and
+`max` for clear exceptional need. Terra stays low routinely and raises effort
+only for concrete visual reasoning complexity. Astra stays low unless concrete
+complexity or a failed attempt warrants more. Sol has a stricter low preference:
+keep low for normal and moderate work, including ordinary multi-file and API
+tasks, and raise to medium or high only when scope, ambiguity, or critical risk
+clearly exceeds low capability, or a concrete failed attempt demonstrates the
+need. Task category alone does not justify an increase. Avoid reflexive medium,
+high, `xhigh`, `max`, or `ultra`. For any non-default effort, use an
 untyped/default worker with explicit model and effort settings plus that role's
 short instructions, and use `fork_turns="none"`; named custom roles pin their
 saved defaults.

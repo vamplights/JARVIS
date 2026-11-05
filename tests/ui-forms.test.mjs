@@ -5,10 +5,10 @@ const field=(label,name,value,type='number',hint='',extra='')=>'<label>'+label+'
 const select=(label,name,values,value)=>'<label>'+label+'<select name="'+name+'">'+values.map(([v,t])=>'<option value="'+v+'" '+(v===value?'selected':'')+'>'+t+'</option>').join('')+'</select></label>';
 const helpers={field,select,esc,localInput:t=>t||'2026-10-15T10:00',timezone:'America/Los_Angeles',market:'stocks',symbol:'SPY'};
 
-test('Settings have six meaningful groups; existing beta controls have one explicit destination',()=>{
- assert.equal(SETTINGS_GROUPS.length,6);assert.equal(new Set(SETTINGS_GROUPS.map(g=>g[0])).size,6);
+test('Settings have five meaningful groups; existing beta controls have one explicit destination',()=>{
+ assert.equal(SETTINGS_GROUPS.length,5);assert.equal(new Set(SETTINGS_GROUPS.map(g=>g[0])).size,5);
  for(const [title,group]of [['Appearance','basics'],['Schedule & trading-day reset','basics'],['Capital & risk limits','risk'],['No-trade events & options costs','risk'],['Individual strategy controls','signals'],['Profit model & daily review','data'],['High-quality browser alerts','alerts']])assert.equal(settingsGroupFor(title),group);
- for(const [name,group]of [['cryptoFrames','basics'],['cryptoVenue','risk'],['forwardExitMode','paper'],['entryOrder','signals'],['exitStyles','signals'],['trailingATR','signals'],['scanner.feeds','data'],['service.catchUpDays','data'],['inPlay.minRVOL','signals'],['special.earningsHoldDays','signals']])assert.equal(betaFieldGroup(name),group);
+ for(const [name,group]of [['cryptoFrames','basics'],['cryptoVenue','risk'],['forwardExitMode','signals'],['entryOrder','signals'],['exitStyles','signals'],['trailingATR','signals'],['scanner.feeds','data'],['service.catchUpDays','data'],['inPlay.minRVOL','signals'],['special.earningsHoldDays','signals']])assert.equal(betaFieldGroup(name),group);
 });
 test('Session status moves globally and Read Only explains local writes versus real orders',()=>{
  assert.match(sessionStatusBadge({known:true,stocks:true,crypto:false},esc),/US STOCK SESSION/);assert.match(sessionStatusBadge({known:true,stocks:false,crypto:true},esc),/CRYPTO SESSION/);assert.match(sessionStatusBadge({known:false},esc),/CALENDAR UNVERIFIED/);assert.match(sessionStatusBadge({known:true,stocks:false,crypto:false},esc),/ENTRY WINDOW CLOSED/);

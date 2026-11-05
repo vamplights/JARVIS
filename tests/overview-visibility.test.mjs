@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {overviewPreferences,overviewVisible,OVERVIEW_PAGES} from '../modules/overview-config.mjs';
-import {overviewSettingsForm,overviewDashboard} from '../modules/overview-view.mjs';
+import {overviewSettingsForm,overviewDashboard,overviewPriceStrip} from '../modules/overview-view.mjs';
 const app=readFileSync(new URL('../app.js',import.meta.url),'utf8');
 test('Legacy preferences migrate without changing prices and partial visibility updates preserve them',()=>{
  let saved=JSON.stringify({symbols:['AAPL','ETH-USD'],period:'week'});const prefs=overviewPreferences({getItem:()=>saved,setItem:(k,v)=>saved=v});
@@ -19,10 +19,10 @@ test('Always show overrides remembered pages, selected pages apply when off, and
  prefs.set({alwaysShow:true});assert.equal(overviewVisible(prefs.get(),'crypto'),true);assert.deepEqual(prefs.get().pages,['settings','intelligence']);
  prefs.set({alwaysShow:false,pages:[]});for(const [page] of OVERVIEW_PAGES)assert.equal(overviewVisible(prefs.get(),page),false);assert.equal(overviewVisible({alwaysShow:true},'picks'),false);
 });
-test('Visibility form includes accessible independent controls and Settings always offers recovery',()=>{
+test('Visibility form includes accessible independent controls and the price bar retains its customization',()=>{
  const html=overviewSettingsForm(overviewPreferences().get(),{esc:String});assert.match(html,/Always show on every page/);assert.match(html,/<legend>Show on these pages<\/legend>/);
  assert.equal((html.match(/name="overview-pages"/g)||[]).length,9);assert.doesNotMatch(html,/value="(?:picks|performance|research)"/);assert.doesNotMatch(html,/disabled/);
- const settings=app.slice(app.indexOf('function settingsPage()'),app.indexOf('\n',app.indexOf('function settingsPage()')));assert.match(settings,/data-action="overview-settings"/);
+ const settings=app.slice(app.indexOf('function settingsPage()'),app.indexOf('\n',app.indexOf('function settingsPage()')));assert.doesNotMatch(settings,/Market Pulse price bar/); assert.match(overviewPriceStrip({}, {symbols:[],period:"day"},{esc:String,date:String}),/data-action="overview-settings"/);
  const dashboard=overviewDashboard({heading:'heading',stats:'',watchlist:'',footer:'',helpers:{esc:String,date:String}});assert.doesNotMatch(dashboard,/overview-ticker/);
  assert.equal((app.match(/id="overview-price-host"/g)||[]).length,1);assert.match(app,/overviewVisible\(overviewView.get\(\),page\)\)loadOverview\(\)/);
 });
@@ -38,14 +38,15 @@ test('Shell owns one persistent price host below the topbar and outside page con
  let markup='';const document={querySelector:()=>({set innerHTML(value){markup=value;}})},definition=app.slice(app.indexOf('function shell()'),app.indexOf('function top()'));
  runInNewContext(definition+';shell()', {document,state:{settings:{}},esc:String,sidebarNav:()=>''});
  assert.equal((markup.match(/id="overview-price-host"/g)||[]).length,1);
+ assert.match(markup,/id="overview-recovery"[^>]*data-action="overview-settings"[^>]*hidden/);
  assert.match(markup,/<div class="workspace-header"><header class="topbar">[^]*<\/header><div id="overview-price-host"><\/div><\/div>/);
  const render=app.slice(app.indexOf('function render(){'),app.indexOf('function render(){')+3000);assert.doesNotMatch(render,/priceHost|overview-price-host/);
 });
 test('Quote refresh retains horizontal position and keyboard focus while eligible pages stay visible',()=>{
  let scroll={scrollLeft:135},focused,cleared=false;const button={},region={},card={focus:options=>focused=options},host={hidden:false,contains:()=>true,querySelector:()=>scroll,querySelectorAll:()=>[button,region,card],replaceChildren:()=>cleared=true,set innerHTML(value){scroll={scrollLeft:0};}};
- const prefs=overviewPreferences();const context={$:()=>host,page:'stocks',overviewView:prefs,overviewVisible,document:{activeElement:card},overviewPriceStrip:()=>'<section></section>',overviewData:{},overviewError:'',networkError:false,esc:String,money:String,date:String};
- const definition=app.slice(app.indexOf('function refreshOverviewPrices()'),app.indexOf('function refreshOverviewContent()'));runInNewContext(definition+';this.update=refreshOverviewPrices',context);context.update();assert.equal(host.hidden,false);assert.equal(scroll.scrollLeft,135);assert.equal(focused.preventScroll,true);
- prefs.set({alwaysShow:false,pages:['settings']});context.update();assert.equal(host.hidden,true);assert.equal(cleared,true);context.page='settings';context.update();assert.equal(host.hidden,false);
+ const recovery={hidden:true};const prefs=overviewPreferences();const context={$:selector=>selector==='#overview-recovery'?recovery:host,page:'stocks',overviewView:prefs,overviewVisible,document:{activeElement:card},overviewPriceStrip:()=>'<section></section>',overviewData:{},overviewError:'',networkError:false,esc:String,money:String,date:String};
+ const definition=app.slice(app.indexOf('function refreshOverviewPrices()'),app.indexOf('function refreshOverviewContent()'));runInNewContext(definition+';this.update=refreshOverviewPrices',context);context.update();assert.equal(host.hidden,false);assert.equal(recovery.hidden,true);assert.equal(scroll.scrollLeft,135);assert.equal(focused.preventScroll,true);
+ prefs.set({alwaysShow:false,pages:['settings']});context.update();assert.equal(host.hidden,true);assert.equal(recovery.hidden,false);assert.equal(cleared,true);context.page='settings';context.update();assert.equal(host.hidden,false);assert.equal(recovery.hidden,true);prefs.set({pages:[]});context.update();assert.equal(host.hidden,true);assert.equal(recovery.hidden,false);
 });
 
 test('Always show change persists only visibility and preserves draft controls and focus from either entry point',()=>{

@@ -1,9 +1,12 @@
 // Presentation-only helpers. Existing input names and save/validation paths remain authoritative.
+export const STOCK_WATCHLIST_CHOICES=['QQQ','SPY','TSLA','AAPL','AMD','AVGO','AMZN','GOOGL','MSFT','NVDA','META','NFLX','JPM','BAC','WFC','GS','V','MA','UNH','JNJ','XOM','CVX','COST','WMT','HD','DIS','PLTR','COIN','MU','INTC','CRM','ORCL','ADBE','NOW','UBER','BA','CAT','IWM','DIA','TLT'];
+export function stockWatchlistCandidates(view={}){
+ return [...new Set([...STOCK_WATCHLIST_CHOICES,...(view.settings?.stocks||[])].filter(symbol=>typeof symbol==='string'&&/^[A-Z][A-Z0-9.-]{0,14}$/.test(symbol)))];
+}
 export const SETTINGS_GROUPS=[
  ['basics','Basics & schedule','Appearance, watchlists and trading hours'],
  ['risk','Account, costs & limits','Risk budgets, fees, liquidity and event windows'],
  ['signals','Signals & strategies','Radar filters, Top Picks and individual strategy controls'],
- ['paper','Paper trading','Confirmed-signal forward test and target'],
  ['data','Data, news & learning','Public sources, history, model review and recovery'],
  ['alerts','Notifications','Sounds, visual alerts, quiet hours and thresholds']
 ];
@@ -11,12 +14,12 @@ export function settingsGroupFor(title){
  if(['Appearance','Watchlists & chart intervals','Schedule & trading-day reset'].includes(title))return 'basics';
  if(['Capital & risk limits','No-trade events & options costs','Crypto venue & fees'].includes(title))return 'risk';
  if(['Signals & Top Picks','Setup quality filters','Individual strategy controls','Stocks in play & daily strategies'].includes(title))return 'signals';
- if(title==='Automatic paper settings')return 'paper';
+ if(title==='Automatic paper settings')return 'signals';
  if(['Profit model & daily review','Sources & recovery'].includes(title))return 'data';
  if(['High-quality browser alerts','Top Pick notifications'].includes(title))return 'alerts';
  return 'signals';
 }
-export function betaFieldGroup(name){if(['cryptoFrames'].includes(name))return 'basics';if(name==='cryptoVenue')return 'risk';if(['forwardExitMode'].includes(name))return 'paper';if(['entryOrder','exitStyles','trailingATR'].includes(name))return 'signals';if(name.startsWith('scanner.')||name.startsWith('service.'))return 'data';return 'signals';}
+export function betaFieldGroup(name){if(['cryptoFrames'].includes(name))return 'basics';if(name==='cryptoVenue')return 'risk';if(['forwardExitMode'].includes(name))return 'signals';if(['entryOrder','exitStyles','trailingATR'].includes(name))return 'signals';if(name.startsWith('scanner.')||name.startsWith('service.'))return 'data';return 'signals';}
 
 export function organizeSettings(root,strategyIds=[]){
  const form=root.querySelector('#settings-form');if(!form||form.dataset.organized)return;form.dataset.organized='true';const doc=form.ownerDocument;
@@ -26,17 +29,20 @@ export function organizeSettings(root,strategyIds=[]){
  if(active&&individual){for(const id of strategyIds){const enabled=active.querySelector('[name="strategy-'+id+'"]')?.closest('label'),frames=active.querySelector('[name="strategyFrames.'+id+'"]')?.closest('label'),details=individual.querySelector('[name="strategyMarketFrames.stocks.'+id+'"]')?.closest('details');if(!enabled||!frames||!details)continue;const controls=details.querySelector('.form-grid');controls.prepend(enabled);const shared=doc.createElement('details');shared.className='shared-frame-settings';const summary=doc.createElement('summary');summary.textContent='Shared fallback timeframes';shared.append(summary,frames);details.append(shared);}
   if(!active.querySelector('input,select,textarea')){for(const note of active.querySelectorAll('p'))individual.querySelector('.panel-body')?.append(note);active.remove();}
  }
+ if(individual){const grid=doc.createElement('div');grid.className='strategy-control-grid';for(const details of [...individual.querySelectorAll('.strategy-controls')])grid.append(details);individual.querySelector('.panel-body').append(grid);}
  const generated=[];
  const makePanel=(heading,group)=>{const section=doc.createElement('section');section.className='panel';section.innerHTML='<div class="panel-head"><h2>'+heading+'</h2></div><div class="panel-body form-grid"></div>';section.dataset.settingsGroup=group;generated.push(section);return section;};
  const beta=panels.find(p=>title(p)==='Strategies & local research');
- if(beta){const buckets={basics:makePanel('Crypto signal intervals','basics'),risk:makePanel('Crypto venue & fees','risk'),paper:makePanel('Automatic paper settings','paper'),signals:makePanel('Stocks in play & daily strategies','signals'),data:makePanel('Sources & recovery','data')};
+ if(beta){const buckets={basics:makePanel('Crypto signal intervals','basics'),risk:makePanel('Crypto venue & fees','risk'),signals:makePanel('Stocks in play & daily strategies','signals'),data:makePanel('Sources & recovery','data')};
   for(const field of [...beta.querySelectorAll('.panel-body > label')]){const name=field.querySelector('[name]')?.name;if(name)buckets[betaFieldGroup(name)].querySelector('.panel-body').append(field);}
   for(const note of [...beta.querySelectorAll('.notice')])buckets.risk.querySelector('.panel-body').append(note);
-  const note=doc.createElement('p');note.className='note full';note.textContent='Automatic forward test: every fresh confirmed signal is recorded, regardless of confidence, including enabled 1m. Fills and exits use closed 1-minute candles; stops are checked before targets. Stocks close at the session end; crypto after four hours. Results feed learning. All signals and Realistic account remain available; manual paper trades stay in their own tab. Each cohort retains the latest 3,000 forward tests.';buckets.paper.querySelector('.panel-body').append(note);
+
   if(!beta.querySelector('input,select,textarea'))beta.remove(); // Preserve any future controls until explicitly classified.
  }
  const groups=new Map();for(const [id,label,note]of SETTINGS_GROUPS){const details=doc.createElement('details');details.className='panel settings-category';details.id='settings-group-'+id;details.open=false;const summary=doc.createElement('summary'),text=doc.createElement('span'),strong=doc.createElement('strong'),small=doc.createElement('small');strong.textContent=label;small.textContent=note;text.append(strong,small);summary.append(text);const body=doc.createElement('div');body.className='settings-category-body';details.append(summary,body);groups.set(id,{details,body});}
  for(const panel of [...panels,...generated]){if(!panel.isConnected&&!generated.includes(panel))continue;const group=groups.get(panel.dataset.settingsGroup||settingsGroupFor(title(panel)));panel.classList.remove('panel');panel.classList.add('settings-subsection');const heading=panel.querySelector('h2');if(heading){const h3=doc.createElement('h3');h3.textContent=heading.textContent;heading.replaceWith(h3);}group.body.append(panel);}
+ // Remove subsection footnotes; field guidance, notices and controls remain available.
+ for(const {body}of groups.values())for(const note of body.querySelectorAll('.settings-subsection p.note'))if(!note.querySelector('input,select,textarea,button,a'))note.remove();
  const actions=form.querySelector(':scope > .form-actions');for(const {details,body}of groups.values())if(body.childElementCount)form.insertBefore(details,actions);
  for(const wrapper of [...form.querySelectorAll(':scope > .two-col')])if(!wrapper.querySelector('input,select,textarea'))wrapper.remove();
  if(actions)actions.classList.add('settings-save-bar');
@@ -69,3 +75,15 @@ export function chartViewport(count,back,total,{zoom=0,pan=0}={}){const size=Mat
 export const CHART_PRESETS=[1,3,5,15,60,1440];
 export function customChartMinutes(value,base=60){const n=Number(value);return Number.isInteger(n)&&n>=1&&n<=1440&&n*60>=base&&n*60%base===0?n:null;}
 export function chartFrameButtons(frames,current){return '<div class="chart-frame-selector"><span class="chart-frame-label">Chart timeframe</span><div class="chart-frame-buttons" role="group" aria-label="Chart timeframe">'+frames.map(tf=>'<button type="button" data-chart-frame="'+tf+'" aria-pressed="'+(tf===current)+'" class="'+(tf===current?'active':'')+'">'+(tf===1440?'1D':tf===60?'1h':tf+'m')+'</button>').join('')+'</div><label class="chart-custom-frame">Custom minutes<input name="chart-custom-minutes" type="number" min="1" max="1440" step="1" placeholder="e.g. 10" value="'+(CHART_PRESETS.includes(current)?'':current)+'"><button type="button" data-chart-custom-apply>Apply</button></label><small>Chart only · 1–1,440 minutes, using available source candles.</small></div>';}
+
+// Calendar grouping uses the same close/entry activity date as the journal period filter.
+export function journalCalendar(rows,{timezone='America/Los_Angeles',period='all',sort='newest',now=Date.now(),esc=String,money=String,num=String}={}){
+ const formatter=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}),key=time=>{const date=new Date(time);if(!Number.isFinite(date.getTime()))return null;const parts=Object.fromEntries(formatter.formatToParts(date).map(p=>[p.type,p.value]));return parts.year+'-'+parts.month+'-'+parts.day;},add=(date,n)=>new Date(Date.parse(date+'T12:00:00Z')+n*86400000).toISOString().slice(0,10),monday=date=>add(date,-((new Date(date+'T12:00:00Z').getUTCDay()+6)%7)),groups=new Map(),undated=[];
+ for(const row of rows){const date=key(row.closedAt||row.time);if(!date){undated.push(row);continue;}if(!groups.has(date))groups.set(date,[]);groups.get(date).push(row);}
+ const today=key(now),weeks=new Set([...groups.keys()].map(monday));
+ if(period!=='all'){const start=period==='month'?today.slice(0,7)+'-01':period==='week'?monday(today):today;for(let day=monday(start);day<=today;day=add(day,7))weeks.add(day);}
+ const ordered=[...weeks].sort();if(sort!=='oldest')ordered.reverse();
+ const dateLabel=date=>new Intl.DateTimeFormat('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric',year:'numeric'}).format(new Date(date+'T12:00:00Z'));
+ const card=(row,date)=>'<article class="journal-trade"><div class="journal-trade-square"><button type="button" class="small" data-edit="'+esc(row.id)+'" aria-label="Edit '+esc(row.symbol)+' trade">Edit / close</button><h3>'+esc(row.symbol)+'</h3><span>'+esc(row.market)+' · '+esc(row.decision)+'</span><strong class="journal-trade-pnl '+(row.pnl>0?'pnl-positive':row.pnl<0?'pnl-negative':'pnl-neutral')+'">'+money(row.pnl)+'</strong><span>'+esc(row.decision==='skipped'?'Skipped':row.outcome||'Open')+'</span><details><summary>Trade details</summary><dl><dt>Entry → exit</dt><dd>'+money(row.entry)+' → '+money(row.exit)+'</dd><dt>Size</dt><dd>'+num(row.size,8)+'</dd><dt>Planned risk</dt><dd>'+money(row.plannedRisk)+'</dd></dl></details></div><time'+(date?' datetime="'+date+'"':'')+'>'+esc(date?dateLabel(date):'Date unavailable')+'</time></article>';
+ return '<div class="journal-calendar" tabindex="0" role="region" aria-label="Trade calendar"><p class="journal-calendar-context">'+esc(timezone)+' · '+(sort==='highest'||sort==='lowest'?'P/L sort within each date':'Trades sorted within each date')+' · Closed trades use close date.</p>'+ordered.map(week=>'<section class="journal-calendar-week" aria-label="Week of '+dateLabel(week)+'"><h3>Week of '+dateLabel(week)+'</h3><div class="journal-calendar-days">'+Array.from({length:7},(_,index)=>{const date=add(week,index),trades=groups.get(date)||[];return '<div class="journal-calendar-day"><h4><time datetime="'+date+'">'+dateLabel(date)+'</time></h4>'+trades.map(row=>card(row,date)).join('')+(!trades.length?'<span class="journal-calendar-empty">No trades</span>':'')+'</div>';}).join('')+'</div></section>').join('')+(undated.length?'<section class="journal-calendar-undated"><h3>Date unavailable</h3>'+undated.map(row=>card(row,null)).join('')+'</section>':'')+'</div>';
+}
