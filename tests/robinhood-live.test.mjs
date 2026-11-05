@@ -11,7 +11,7 @@ test('Concurrent chain requests share one lookup and failures receive retry back
 test('OAuth uses PKCE, checks state, keeps secrets out of returned URLs and blocks every non-market tool',async()=>{
  let tokenCalls=0;const requests=[];
  const fetcher=async(url,opts)=>{requests.push({url,opts});if(url.includes('.well-known'))return response(metadata);if(url.endsWith('register'))return response({client_id:'test-public-client'});if(url.includes('oauth2/token')){tokenCalls++;assert.equal(new URLSearchParams(opts.body).get('code_verifier').length,64);return response({access_token:'TEST-SECRET-ONLY',refresh_token:'TEST-REFRESH',token_type:'bearer',expires_in:3600});}const body=JSON.parse(opts.body);assert.equal(opts.headers.Authorization,'Bearer TEST-SECRET-ONLY');if(body.method==='notifications/initialized')return new Response(null,{status:202});return response({jsonrpc:'2.0',id:body.id,result:{protocolVersion:'2025-06-18'}});};
- const client=new RobinhoodClient({origin,fetcher});const {url}=await client.begin(),auth=new URL(url);assert.equal(auth.searchParams.get('code_challenge_method'),'S256');assert.equal(auth.searchParams.get('redirect_uri'),origin+'/api/robinhood/callback');assert.equal(auth.searchParams.has('code_verifier'),false);assert.equal(url.includes('TEST-SECRET'),false);
+ const client=new RobinhoodClient({now:()=>Date.parse('2026-11-04T15:00:00Z'),origin,fetcher});const {url}=await client.begin(),auth=new URL(url);assert.equal(auth.searchParams.get('code_challenge_method'),'S256');assert.equal(auth.searchParams.get('redirect_uri'),origin+'/api/robinhood/callback');assert.equal(auth.searchParams.has('code_verifier'),false);assert.equal(url.includes('TEST-SECRET'),false);
  await assert.rejects(client.finish(new URLSearchParams({state:'wrong',code:'test'})),/state mismatch/);assert.equal(tokenCalls,0);
  await client.finish(new URLSearchParams({state:auth.searchParams.get('state'),code:'test'}));assert.equal(client.connected,true);assert.equal(tokenCalls,1);
  for(const name of ['place_option_order','get_accounts','cancel_order','get_equity_positions'])await assert.rejects(client.call(name,{}),/market-data reads/);
@@ -19,7 +19,7 @@ test('OAuth uses PKCE, checks state, keeps secrets out of returned URLs and bloc
  assert.equal(requests.every(r=>r.opts.redirect==='error'),true);
 });
 test('OAuth rejects untrusted discovery endpoints and expired callbacks',async()=>{
- const client=new RobinhoodClient({origin,fetcher:async()=>response({...metadata,token_endpoint:'https://bad.example/token'})});await assert.rejects(client.begin(),/metadata changed/);
+ const client=new RobinhoodClient({now:()=>Date.parse('2026-11-04T15:00:00Z'),origin,fetcher:async()=>response({...metadata,token_endpoint:'https://bad.example/token'})});await assert.rejects(client.begin(),/metadata changed/);
  client.pending={state:'test',expires:Date.now()-1};await assert.rejects(client.finish(new URLSearchParams({state:'test',code:'abc'})),/expired/);
 });
 test('MCP SSE parser ignores unrelated events and finds matching response across chunks',async()=>{
@@ -27,7 +27,7 @@ test('MCP SSE parser ignores unrelated events and finds matching response across
  const message=await readRPC(new Response(stream,{headers:{'Content-Type':'text/event-stream'}}),4);assert.equal(message.result.ok,true);
 });
 test('MCP rate limit preserves Retry-After and does not expose body',async()=>{
- const c=new RobinhoodClient({origin,fetcher:async()=>new Response('PRIVATE ERROR',{status:429,headers:{'retry-after':'120'}})});c.tokens={access:'TEST',expires:Date.now()+3600000};c.initialized=true;
+ const c=new RobinhoodClient({now:()=>Date.parse('2026-11-04T15:00:00Z'),origin,fetcher:async()=>new Response('PRIVATE ERROR',{status:429,headers:{'retry-after':'120'}})});c.tokens={access:'TEST',expires:Date.now()+3600000};c.initialized=true;
  await assert.rejects(c.call('get_equity_quotes',{symbols:['SPY']}),e=>e.status===429&&e.retryMs===120000&&!e.message.includes('PRIVATE'));
 });
 test('Options preserve zero Greeks, drop missing values, crossed spreads and future timestamps',()=>{

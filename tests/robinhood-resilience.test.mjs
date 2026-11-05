@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {RobinhoodClient,RobinhoodError} from '../modules/robinhood-client.mjs';import {RobinhoodLive} from '../modules/robinhood-live.mjs';import {DEFAULTS} from '../modules/engine.mjs';
 const rpcResponse=(body,data={ok:true})=>new Response(JSON.stringify({jsonrpc:'2.0',id:JSON.parse(body).id,result:{structuredContent:{data}}}));
-function client(fetcher){const c=new RobinhoodClient({origin:'http://127.0.0.1:8766',fetcher,retryDelayMs:0});c.initialized=true;c.tokens={access:'TEST',refresh:'TEST-REFRESH',expires:Date.now()+3600000};return c;}
+function client(fetcher){const c=new RobinhoodClient({now:()=>Date.parse('2026-11-04T15:00:00Z'),origin:'http://127.0.0.1:8766',fetcher,retryDelayMs:0});c.initialized=true;c.tokens={access:'TEST',refresh:'TEST-REFRESH',expires:Date.now()+3600000};return c;}
 test('Temporary read timeout retries once and preserves authorization; repeated timeout has a clear error',async()=>{
  let calls=0;const c=client(async(url,opts)=>{if(++calls===1)throw new DOMException('abort','TimeoutError');return rpcResponse(opts.body);});assert.deepEqual(await c.call('get_equity_quotes',{symbols:['SPY']}),{ok:true});assert.equal(calls,2);assert.equal(c.connected,true);
  c.fetcher=async()=>{throw new DOMException('abort','TimeoutError');};await assert.rejects(c.call('get_option_quotes',{}),e=>e.status===408&&/timed out/.test(e.message));assert.equal(c.connected,true);

@@ -17,22 +17,22 @@ export function historyStart(now,settings){
 }
 export class RobinhoodLive {
  constructor({client,settings,onChange=()=>{},save=()=>{},loadChains=()=>[],saveChains=()=>{}}){this.client=client;this.settings=settings;this.onChange=onChange;this.save=save;this.assets={};this.histories=new Map();this.indexIds=new Map();this.indexErrors={};this.indexRestrictions=new Map();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.historyError=null;this.historyJob=null;this.historyNextRefresh=0;this.optionJob=null;this.error=null;this.failures=0;this.nextRefresh=null;this.busy=false;this.timer=null;this.epoch=0;this.chains=new Map(loadChains());this.saveChains=saveChains;this.chainJobs=new Map();this.chainErrors=new Map();this.warmingChains=false;this.signalBooks=new Map();this.signalOptionsBusy=false;this.signalOptionsRetryAt=0;this.options={symbol:'SPY',expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};}
- get status(){const seconds=session(Date.now(),this.settings()).regular?15:60;return {connected:this.client.connected,status:!this.client.connected?'SIGN IN REQUIRED':this.error?'RETRYING':this.lastSuccess?'CONNECTED':'CONNECTING',error:this.error,lastSuccess:this.lastSuccess,nextRefresh:this.nextRefresh,quoteIntervalSeconds:seconds,historyAt:this.historyAt,historyError:this.historyError,indexErrors:{...this.indexErrors}};}
+ get status(){const seconds=session(Date.now(),this.settings()).regular?15:60;return {connected:this.client.connected,status:!this.client.connected?'SIGN IN REQUIRED':this.client.marketOpen===false?'MARKET CLOSED':this.error?'RETRYING':this.lastSuccess?'CONNECTED':'CONNECTING',error:this.client.marketOpen===false?null:this.error,lastSuccess:this.lastSuccess,nextRefresh:this.nextRefresh,quoteIntervalSeconds:seconds,historyAt:this.historyAt,historyError:this.client.marketOpen===false?null:this.historyError,indexErrors:this.client.marketOpen===false?{}:{...this.indexErrors}};}
  start(){this.stopTimer();this.nextRefresh=Date.now();this.timer=setTimeout(()=>this.tick(),0);}
  stopTimer(){clearTimeout(this.timer);this.timer=null;}
  disconnect(){this.stopTimer();this.epoch++;this.historyJob=null;this.optionJob=null;this.historyError=null;this.historyNextRefresh=0;this.signalBooks.clear();this.indexIds.clear();this.indexRestrictions.clear();this.indexErrors={};this.client.disconnect();this.assets={};this.histories.clear();this.quotes={results:[]};this.lastSuccess=null;this.historyAt=null;this.nextRefresh=null;this.error=null;this.options={symbol:this.options.symbol,expiration:'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:false};this.onChange();}
  async tick(force=false){
-  if(this.busy||!this.client.connected)return;if(!force&&this.nextRefresh>Date.now()){this.schedule(this.nextRefresh-Date.now());return;}
+  if(this.busy||!this.client.connected)return;if(this.client.marketOpen===false){this.schedule(1000);return;}if(!force&&this.nextRefresh>Date.now()){this.schedule(this.nextRefresh-Date.now());return;}
   this.stopTimer();this.busy=true;const epoch=this.epoch;let delay=session(Date.now(),this.settings()).regular?15000:60000;
   try{
    const symbols=this.settings().stocks.filter(s=>!isIndexSymbol(s)),quotes={results:[]};
    for(let i=0;i<symbols.length;i+=20){const batch=await this.client.call('get_equity_quotes',{symbols:symbols.slice(i,i+20)});if(epoch!==this.epoch)return;quotes.results.push(...(batch.results||[]));}
-   for(const symbol of this.settings().stocks.filter(isIndexSymbol)){try{const id=await this.indexId(symbol),data=await this.client.call('get_index_quotes',{instrument_ids:[id]});if(epoch!==this.epoch)return;this.checkIndexAccess(symbol,data);const row=(data.quotes||[]).map(q=>indexQuoteRow(q,symbol,id)).find(Boolean);if(!row)throw Error('No usable index quote returned');quotes.results.push(row);delete this.indexErrors[symbol];}catch(e){this.indexErrors[symbol]=e.message;}}
+   for(const symbol of this.settings().stocks.filter(isIndexSymbol)){try{const id=await this.indexId(symbol),data=await this.client.call('get_index_quotes',{instrument_ids:[id]});if(epoch!==this.epoch)return;this.checkIndexAccess(symbol,data);const row=(data.quotes||[]).map(q=>indexQuoteRow(q,symbol,id)).find(Boolean);if(!row)throw Error('No usable index quote returned');quotes.results.push(row);delete this.indexErrors[symbol];}catch(e){if(e.marketClosed)throw e;this.indexErrors[symbol]=e.message;}}
    if(!quotes.results?.length)throw new Error('No Robinhood stock quotes returned');this.quotes=quotes;
    this.publishAssets();this.lastSuccess=Date.now();this.error=null;this.failures=0;this.onChange();
    this.refreshSelectedOptions(epoch);this.refreshHistory(epoch);this.optionJob?.finally(()=>{if(epoch===this.epoch)this.warmChains();});
 
-  }catch(e){if(epoch===this.epoch){this.error=e.message;this.failures++;delay=Math.min(900000,Math.max(e.retryMs||0,60000*2**Math.min(this.failures-1,4)));}}
+  }catch(e){if(epoch===this.epoch&&!e.marketClosed){this.error=e.message;this.failures++;delay=Math.min(900000,Math.max(e.retryMs||0,60000*2**Math.min(this.failures-1,4)));}}
   finally{this.busy=false;if(epoch===this.epoch&&this.client.connected)this.schedule(delay);this.onChange();}
  }
  checkIndexAccess(symbol,data){const restriction=data.restricted?.[0];if(restriction){const message=restriction.message||'Index data unavailable due to licensing restrictions';this.indexRestrictions.set(symbol,message);throw Error(message);}}
@@ -54,6 +54,7 @@ export class RobinhoodLive {
  }
  restoreHistory(raw){parseRobinhoodSnapshot(raw);for(const h of raw.history.results)if(this.settings().stocks.includes(h.symbol))this.histories.set(h.symbol,h);}
  refreshHistory(epoch=this.epoch){
+  if(this.client.marketOpen===false)return;
   const symbols=this.settings().stocks,interval=session(Date.now(),this.settings()).regular?60000:300000;
   if(this.historyJob||this.historyNextRefresh>Date.now()||this.historyAt&&Date.now()-this.historyAt<interval&&symbols.every(s=>this.histories.has(s)))return this.historyJob;
   const job=(async()=>{await Promise.resolve();const errors=[];let updated=false;try{
@@ -65,31 +66,34 @@ export class RobinhoodLive {
     parseRobinhoodSnapshot({provider:'Robinhood MCP',capturedAt:new Date().toISOString(),quotes:this.quotes,history:{results:[h]}});
     const merged=new Map((this.histories.get(symbol)?.bars||[]).map(b=>[b.begins_at,b]));for(const bar of h.bars)if(bar)merged.set(bar.begins_at,{...bar,complete:Date.parse(bar.begins_at)+60000<=Date.now()-2000});
     this.histories.set(symbol,{...h,bars:[...merged.values()].sort((a,b)=>Date.parse(a.begins_at)-Date.parse(b.begins_at)).slice(-2000)});updated=true;this.onChange();
-   }catch(e){errors.push(symbol+': '+e.message);if(e.status===429||errors.length>=3)break;}}
+   }catch(e){if(e.marketClosed)return;errors.push(symbol+': '+e.message);if(e.status===429||errors.length>=3)break;}}
    if(epoch!==this.epoch)return;
    if(errors.length){this.historyError=errors.join('; ');this.historyNextRefresh=Date.now()+30000;}else{this.historyAt=Date.now();this.historyError=null;}
    // Publish (re-parse + write the snapshot) once per refresh instead of once per symbol.
    if(updated||!errors.length)this.publishAssets();
-  }catch(e){if(epoch===this.epoch){this.historyError=e.message;this.historyNextRefresh=Date.now()+30000;}}
+  }catch(e){if(epoch===this.epoch&&!e.marketClosed){this.historyError=e.message;this.historyNextRefresh=Date.now()+30000;}}
   finally{if(this.historyJob===job)this.historyJob=null;this.onChange();}})();this.historyJob=job;return job;
  }
  refreshSelectedOptions(epoch=this.epoch){
+  if(this.client.marketOpen===false)return;
   if(this.optionJob||this.options.loading)return this.optionJob;
-  const job=(async()=>{await Promise.resolve();try{if(!this.options.contracts.length)await this.selectOptions({symbol:this.settings().stocks.includes(this.options.symbol)?this.options.symbol:this.settings().stocks[0]});else await this.refreshOptions(epoch);}catch(e){if(epoch===this.epoch)this.options.error=e.message;}finally{if(this.optionJob===job)this.optionJob=null;this.onChange();}})();this.optionJob=job;return job;
+  const job=(async()=>{await Promise.resolve();try{if(!this.options.contracts.length)await this.selectOptions({symbol:this.settings().stocks.includes(this.options.symbol)?this.options.symbol:this.settings().stocks[0]});else await this.refreshOptions(epoch);}catch(e){if(epoch===this.epoch&&!e.marketClosed)this.options.error=e.message;}finally{if(this.optionJob===job)this.optionJob=null;this.onChange();}})();this.optionJob=job;return job;
  }
  schedule(delay){this.stopTimer();this.nextRefresh=Date.now()+delay;this.timer=setTimeout(()=>this.tick(),delay);this.timer.unref?.();}
  // Populate every watchlist's expiry independently of news or the selected option chain.
- async warmChains(){if(this.warmingChains||!this.client.connected)return;this.warmingChains=true;try{for(const symbol of this.settings().stocks){if(!this.client.connected)break;const error=this.chainErrors.get(symbol);if(error?.retryAt>Date.now())continue;try{await this.ensureChain(symbol);}catch(e){if(e.status===429)break;}}}finally{this.warmingChains=false;}}
+ async warmChains(){if(this.client.marketOpen===false||this.warmingChains||!this.client.connected)return;this.warmingChains=true;try{for(const symbol of this.settings().stocks){if(!this.client.connected)break;const error=this.chainErrors.get(symbol);if(error?.retryAt>Date.now())continue;try{await this.ensureChain(symbol);}catch(e){if(e.status===429)break;}}}finally{this.warmingChains=false;}}
  async ensureChain(symbol,{priority=3}={}){
+  if(this.client.marketOpen===false)return this.chains.get(symbol)||null;
   if(!this.client.connected||!this.settings().stocks.includes(symbol))return null;
   const cached=this.chains.get(symbol);if(cached&&Date.now()-cached.time>=-5000&&Date.now()-cached.time<3600000)return cached;
   if(this.chainJobs.has(symbol))return this.chainJobs.get(symbol);
-  const epoch=this.epoch,job=(async()=>{try{const data=await this.client.call('get_option_chains',{underlying_symbol:symbol},{priority});if(epoch!==this.epoch)return null;const chain={time:Date.now(),items:(data.chains||[]).filter(Boolean)};this.chains.set(symbol,chain);this.chainErrors.delete(symbol);this.saveChains([...this.chains]);return chain;}catch(e){this.chainErrors.set(symbol,{message:e.message,retryAt:Date.now()+Math.max(60000,e.retryMs||0)});throw e;}finally{this.chainJobs.delete(symbol);}})();this.chainJobs.set(symbol,job);return job;
+  const epoch=this.epoch,job=(async()=>{try{const data=await this.client.call('get_option_chains',{underlying_symbol:symbol},{priority});if(epoch!==this.epoch)return null;const chain={time:Date.now(),items:(data.chains||[]).filter(Boolean)};this.chains.set(symbol,chain);this.chainErrors.delete(symbol);this.saveChains([...this.chains]);return chain;}catch(e){if(e.marketClosed)return this.chains.get(symbol)||null;this.chainErrors.set(symbol,{message:e.message,retryAt:Date.now()+Math.max(60000,e.retryMs||0)});throw e;}finally{this.chainJobs.delete(symbol);}})();this.chainJobs.set(symbol,job);return job;
  }
  async selectOptions({symbol,expiration,strike}={}){
+  if(this.client.marketOpen===false)return;
   if(this.options.loading)throw new Error('Options selection is still loading');if(!this.client.connected)throw new Error('Connect Robinhood to load options');if(!this.settings().stocks.includes(symbol))throw new Error('Choose a stock on your watchlist');
   if(strike!==undefined&&strike!==null&&(!(Number(strike)>0)||!Number.isFinite(Number(strike))))throw new Error('Enter a valid center strike');
-  const epoch=this.epoch;this.options={symbol,expiration:expiration||'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:true};this.onChange();
+  const previousOptions=this.options,epoch=this.epoch;this.options={symbol,expiration:expiration||'',expirations:[],contracts:[],fetchedAt:null,error:null,loading:true};this.onChange();
   try{
    const chains=await this.ensureChain(symbol,{priority:1});if(!chains)throw Error('Option chain unavailable');
    if(epoch!==this.epoch)return;
@@ -107,7 +111,7 @@ export class RobinhoodLive {
    const unique=[...new Map(instruments.map(c=>[c.id,c])).values()];
    const contracts=unique.sort((a,b)=>Math.abs(Number(a.strike_price)-center)-Math.abs(Number(b.strike_price)-center)||Number(a.strike_price)-Number(b.strike_price)||a.type.localeCompare(b.type)).slice(0,20).map(c=>({id:c.id,symbol:c.chain_symbol,expiration:c.expiration_date,type:c.type,strike:Number(c.strike_price),multiplier:Number(c.trade_value_multiplier),state:c.state,tradability:c.tradability,quote:null})).filter(c=>c.multiplier>0&&Number.isFinite(c.strike)).sort((a,b)=>a.strike-b.strike||a.type.localeCompare(b.type));
    this.options.contracts=contracts;this.options.error=null;if(!contracts.length)throw new Error('No option contracts returned for this expiration');await this.refreshOptions(epoch);
-  }catch(e){if(epoch===this.epoch)this.options.error=e.message;if(e.status===429)throw e;}
+  }catch(e){if(e.marketClosed||this.client.marketOpen===false){if(epoch===this.epoch&&typeof previousOptions!=='undefined')this.options=previousOptions;return;}if(epoch===this.epoch)this.options.error=e.message;if(e.status===429)throw e;}
   finally{if(epoch===this.epoch){this.options.loading=false;this.onChange();}}
  }
  // Independent books keep automatic signal requests from changing the user's chain selector.
@@ -119,7 +123,7 @@ export class RobinhoodLive {
  }
  allOptionQuotes(){const rows=new Map();for(const book of [...this.signalBooks.values()].map(w=>w.options).concat(this.options))for(const c of book.contracts||[]){const prior=rows.get(c.id);if(!prior||(c.quote?.time||0)>=(prior.quote?.time||0))rows.set(c.id,c);}return {contracts:[...rows.values()]};}
  async refreshSignalOptions(signals){
-  if(this.signalOptionsBusy||!this.client.connected||this.signalOptionsRetryAt>Date.now())return;
+  if(this.client.marketOpen===false||this.signalOptionsBusy||!this.client.connected||this.signalOptionsRetryAt>Date.now())return;
   this.signalOptionsBusy=true;const epoch=this.epoch,settings=this.settings(),now=Date.now();
   const symbols=[...new Set(signals.filter(s=>s.market==='stocks'&&s.horizon!=='swing'&&!s.replay&&!s.legacyProfile&&settings.stocks.includes(s.symbol)&&radarVisible(s,settings,{now})).sort((a,b)=>(a.status==='CONFIRMED'?-1:0)-(b.status==='CONFIRMED'?-1:0)).map(s=>s.symbol))];
   for(const symbol of this.signalBooks.keys())if(!symbols.includes(symbol))this.signalBooks.delete(symbol);
@@ -138,14 +142,15 @@ export class RobinhoodLive {
     if(worker.options.expiration!==expiry||!worker.options.contracts.length)await worker.selectOptions({symbol,expiration:expiry});
     else if(Date.now()-(worker.options.fetchedAt||0)>=interval)await worker.refreshOptions();
     if(worker.options.error)worker.retryAt=Date.now()+60000;
-   }catch(e){worker.options.error=e.message;worker.options.loading=false;worker.retryAt=Date.now()+Math.max(60000,e.retryMs||0);if(e.status===429){this.signalOptionsRetryAt=worker.retryAt;break;}}
+   }catch(e){if(e.marketClosed)break;worker.options.error=e.message;worker.options.loading=false;worker.retryAt=Date.now()+Math.max(60000,e.retryMs||0);if(e.status===429){this.signalOptionsRetryAt=worker.retryAt;break;}}
   }}finally{this.signalOptionsBusy=false;this.onChange();}
  }
  async refreshOptions(epoch=this.epoch){
+  if(this.client.marketOpen===false)return;
   const contracts=this.options.contracts;if(!contracts.length)return;
   try{const data=await this.client.call('get_option_quotes',{instrument_ids:contracts.map(c=>c.id)});if(epoch!==this.epoch||contracts!==this.options.contracts)return;
    const rows=new Map((data.results||[]).filter(r=>r?.quote).map(r=>[r.quote.instrument_id,r.quote]));
    this.options.contracts=contracts.map(c=>({...c,quote:optionQuote(rows.get(c.id))}));this.options.fetchedAt=Date.now();this.options.error=rows.size?'': 'No option quotes returned';
-  }catch(e){if(epoch===this.epoch)this.options.error=e.message;if(e.status===429)throw e;}
+  }catch(e){if(epoch===this.epoch&&!e.marketClosed)this.options.error=e.message;if(e.status===429)throw e;}
  }
 }

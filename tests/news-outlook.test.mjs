@@ -12,3 +12,12 @@ test('Worth a look is first and gets a fresh default-open preference while keepi
 test('Forecast view escapes headline/source text, skips unsafe URLs and tolerates invalid timestamps',()=>{const p=analyzeNewsOutlook(idea([headline('ABC raises guidance <script>',{publisher:'<bad>',url:'javascript:alert(1)'})]),now),html=newsOutlookView(p);assert.ok(!html.includes('<script>'));assert.ok(!html.includes('href="javascript:'));assert.match(html,/&lt;bad&gt;/);assert.doesNotThrow(()=>scannerPanel({ideas:[],lastScan:1e18,errors:[],membership:{}}));});
 
 test('Live scan analysis and frozen timestamp follow completed news retrieval, without backdating newly received headlines',async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'jarvis-news-clock-'));try{let clock=now;const cache={},news={cache,refresh:async symbol=>{clock=now+2000;cache[symbol]={items:[headline(symbol+' raises guidance',{receivedAt:clock})]};}},daily=[3,2].map(days=>({time:(now-days*86400000)/1000,open:100,close:100,high:101,low:99,volume:1000,complete:true})),scanner=new Scanner({dir,settings:()=>({...DEFAULTS,stocks:['ABC'],scanner:{...DEFAULTS.scanner,enabled:true,feeds:[]}}),history:{dataset:()=>({bars:daily}),status:{}},news,context:()=>({earnings:{}}),requests:{},assets:()=>({}),profile:()=> 'p',now:()=>clock});scanner.membership=async()=>{};scanner.universe=()=>['ABC'];scanner.quotes=async()=>({ABC:{price:103,time:now,open:100,volume:2000},SPY:{price:100,time:now,open:100,volume:1000}});scanner.buildInPlay=()=>{};await scanner.performScan({freeze:true,now});assert.equal(scanner.data.ideas[0].newsOutlook.asOf,clock);assert.equal(scanner.data.ideas[0].newsOutlook.headlineCount,1);assert.equal(scanner.data.lists[0].frozenAt,clock);assert.ok(scanner.data.lists[0].frozenAt>=cache.ABC.items[0].receivedAt);}finally{fs.rmSync(dir,{recursive:true,force:true});}});
+
+
+test('News ideas remain available in a labeled keyboard-scrollable region',()=>{
+ const ideas=Array.from({length:7},(_,i)=>({...idea([headline('Company news')]),symbol:'NEWS'+i}));
+ const html=scannerPanel({ideas,lastScan:now});
+ assert.match(html,/class="panel-body news-ideas-grid" role="region" aria-label="News ideas\. Scroll to view all ideas\." tabindex="0"/);
+ for(const item of ideas)assert.ok(html.includes(item.symbol));
+ assert.equal((html.match(/class="news-idea"/g)||[]).length,ideas.length);
+});

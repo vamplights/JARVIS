@@ -1,3 +1,8 @@
+import {session,parts} from './engine.mjs';
+
+export function robinhoodMarketOpen(now=Date.now(),settings){const hours=session(now,settings),minute=parts(now,'America/New_York').minutes;return hours.tradingDay&&minute>=560&&minute<hours.close+10;}
+export class RobinhoodMarketClosed extends Error {constructor(){super('MARKET CLOSED');this.marketClosed=true;}}
+
 import {randomBytes,createHash,timingSafeEqual} from 'node:crypto';
 
 const RESOURCE='https://agent.robinhood.com/mcp/trading';
@@ -13,7 +18,7 @@ export async function readRPC(response,id){
 }
 // Credentials never reach the dashboard. Optional storage uses Windows account encryption.
 export class RobinhoodClient {
- constructor({origin,fetcher=fetch,store=null,retryDelayMs=500,requestTimeoutMs=25000}={}){this.retryDelayMs=retryDelayMs;this.requestTimeoutMs=requestTimeoutMs;this.initializing=null;this.marketQueue=[];this.marketRunning=0;this.backgroundRunning=0;this.store=store;this.storageError=null;this.remembered=false;this.origin=origin;this.fetcher=fetcher;this.tokens=null;this.clientId=null;this.pending=null;this.sessionId=null;this.protocol='2025-06-18';this.seq=0;this.generation=0;this.refreshing=null;}
+ constructor({origin,fetcher=fetch,store=null,retryDelayMs=500,requestTimeoutMs=25000,now=Date.now,settings=()=>undefined}={}){this.now=now;this.settings=settings;this.retryDelayMs=retryDelayMs;this.requestTimeoutMs=requestTimeoutMs;this.initializing=null;this.marketQueue=[];this.marketRunning=0;this.backgroundRunning=0;this.store=store;this.storageError=null;this.remembered=false;this.origin=origin;this.fetcher=fetcher;this.tokens=null;this.clientId=null;this.pending=null;this.sessionId=null;this.protocol='2025-06-18';this.seq=0;this.generation=0;this.refreshing=null;}
  restore(){
   if(!this.store)return false;
   try{const saved=this.store.load();if(!saved)return false;
@@ -24,7 +29,9 @@ export class RobinhoodClient {
  saveAuthorization(){if(!this.store)return;try{this.store.save({version:1,origin:this.origin,clientId:this.clientId,tokens:this.tokens});this.remembered=true;this.storageError=null;}catch{this.remembered=false;this.storageError='Connection works for this session, but encrypted authorization could not be saved.';}}
  forgetAuthorization(){this.tokens=null;this.remembered=false;if(this.store){try{this.store.clear();this.storageError=null;}catch{this.storageError='Saved authorization could not be deleted. Remove the local encrypted authorization file before restarting.';throw Error(this.storageError);}}}
  get connected(){return !!this.tokens;}
- async request(url,options={}){try{return await this.fetcher(url,{...options,redirect:'error',signal:AbortSignal.timeout(this.requestTimeoutMs)});}catch(e){throw this.connectionError(e);}}
+ get marketOpen(){return robinhoodMarketOpen(this.now(),this.settings());}
+ assertMarketOpen(){if(!this.marketOpen)throw new RobinhoodMarketClosed();}
+ async request(url,options={}){this.assertMarketOpen();try{return await this.fetcher(url,{...options,redirect:'error',signal:AbortSignal.timeout(this.requestTimeoutMs)});}catch(e){throw this.connectionError(e);}}
  connectionError(e){if(['TimeoutError','AbortError'].includes(e?.name))return new RobinhoodError('Robinhood request timed out. Temporary market-data failures retry automatically; your saved sign-in is retained.',408);if(e instanceof TypeError)return new RobinhoodError('Robinhood could not be reached. Automatic market-data refresh will retry.',503);return e;}
  async begin(){
   const metadata=await this.request('https://agent.robinhood.com/.well-known/oauth-authorization-server');if(!metadata.ok)throw new Error('Robinhood sign-in discovery unavailable');const m=await metadata.json();
@@ -35,7 +42,7 @@ export class RobinhoodClient {
   const url=new URL(m.authorization_endpoint);url.search=new URLSearchParams({response_type:'code',client_id:this.clientId,redirect_uri:redirect,state,code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256',scope:'internal',resource:RESOURCE}).toString();return {url:url.href};
  }
  async finish(params){
-  const p=this.pending,state=params.get('state')||'';
+  this.assertMarketOpen();const p=this.pending,state=params.get('state')||'';
   if(!p||Date.now()>p.expires||state.length!==p.state.length||!timingSafeEqual(Buffer.from(state),Buffer.from(p.state)))throw new Error('Sign-in expired or state mismatch. Start Connect Robinhood again.');
   this.pending=null;if(params.has('error'))throw new Error('Robinhood authorization was not completed.');if(params.has('iss')&&params.get('iss')!==RESOURCE)throw new Error('Unexpected authorization issuer');
   const code=params.get('code');if(!code)throw new Error('Missing Robinhood authorization code');
@@ -47,7 +54,7 @@ export class RobinhoodClient {
   const t=await r.json();if(!t.access_token||t.token_type?.toLowerCase()!=='bearer')throw new Error('Invalid Robinhood token response');if(generation!==this.generation)throw new Error('Connection was disconnected');
   this.tokens={access:t.access_token,refresh:t.refresh_token||this.tokens?.refresh,expires:Date.now()+Math.max(1,Number(t.expires_in)||300)*1000};this.saveAuthorization();
  }
- async ensureToken(){if(!this.tokens)throw new RobinhoodError('Connect Robinhood to enable automatic data refresh',401);if(this.tokens.expires>Date.now()+60000)return;if(!this.tokens.refresh){this.forgetAuthorization();throw new RobinhoodError('Robinhood sign-in expired',401);}if(!this.refreshing)this.refreshing=this.token({grant_type:'refresh_token',refresh_token:this.tokens.refresh,client_id:this.clientId,resource:RESOURCE}).finally(()=>this.refreshing=null);await this.refreshing;}
+ async ensureToken(){this.assertMarketOpen();if(!this.tokens)throw new RobinhoodError('Connect Robinhood to enable automatic data refresh',401);if(this.tokens.expires>Date.now()+60000)return;if(!this.tokens.refresh){this.forgetAuthorization();throw new RobinhoodError('Robinhood sign-in expired',401);}if(!this.refreshing)this.refreshing=this.token({grant_type:'refresh_token',refresh_token:this.tokens.refresh,client_id:this.clientId,resource:RESOURCE}).finally(()=>this.refreshing=null);await this.refreshing;}
  async rpc(method,params,notify=false){
   await this.ensureToken();const id=++this.seq;
   const r=await this.request(RESOURCE,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json, text/event-stream',Authorization:`Bearer ${this.tokens.access}`,'MCP-Protocol-Version':this.protocol,...(this.sessionId?{'Mcp-Session-Id':this.sessionId}:{})},body:JSON.stringify({jsonrpc:'2.0',...(notify?{}:{id}),method,params})});

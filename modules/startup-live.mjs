@@ -1,5 +1,5 @@
 export function liveDataReady(live,settings,now=Date.now()){
- if(!live.client.connected)return true;const seconds=settings.stockStaleSeconds??settings.staleSeconds??30,fresh=q=>Number.isFinite(q?.time)&&q.time<=now&&now-q.time<=seconds*1000;
+ if(!live.client.connected||live.client.marketOpen===false)return true;const seconds=settings.stockStaleSeconds??settings.staleSeconds??30,fresh=q=>Number.isFinite(q?.time)&&q.time<=now&&now-q.time<=seconds*1000;
  return !!live.lastSuccess&&!!live.historyAt&&settings.stocks.every(symbol=>{const a=live.assets[symbol];return a?.quote?.price>0&&fresh(a.quote)&&a.bars?.some(b=>b.complete!==false);})&&live.options.contracts.some(c=>c.quote?.bid>0&&c.quote.ask>=c.quote.bid&&fresh(c.quote));
 }
 // Live reads get the initial startup window before recovery/replay/scanner work.

@@ -21,17 +21,26 @@ function Test-JarvisReady {
 $jarvisService=Get-Service -Name 'JARVISLocal' -ErrorAction SilentlyContinue
 if ($jarvisService) {
     if ($jarvisService.Status -ne 'Running') { Start-Service -Name 'JARVISLocal' }
-    $jarvisServiceDeadline=(Get-Date).AddSeconds(20)
-    while (-not (Test-JarvisReady) -and (Get-Date) -lt $jarvisServiceDeadline) { Start-Sleep -Milliseconds 500 }
+    $jarvisServiceStarted=Get-Date
+    $jarvisServiceDeadline=$jarvisServiceStarted.AddSeconds(120)
+    $jarvisServiceNotice=$false
+    while (-not (Test-JarvisReady) -and (Get-Date) -lt $jarvisServiceDeadline) {
+        if ((Get-Service -Name 'JARVISLocal').Status -ne 'Running') { break }
+        if (-not $jarvisServiceNotice -and (Get-Date) -ge $jarvisServiceStarted.AddSeconds(20)) { Write-Host 'JARVIS is still starting…'; $jarvisServiceNotice=$true }
+        Start-Sleep -Milliseconds 500
+    }
 }
 if (-not (Test-JarvisReady)) {
     if ($jarvisService) { throw 'The JARVIS service has not passed its health check yet. See data\service-error.log.' }
     $jarvisStarted = Start-Process -FilePath $jarvisNode -ArgumentList @('server.mjs') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $jarvisData 'server.log') -RedirectStandardError (Join-Path $jarvisData 'server-error.log') -PassThru
-    $jarvisDeadline = (Get-Date).AddSeconds(20)
+    $jarvisStartedAt = Get-Date
+    $jarvisDeadline = $jarvisStartedAt.AddSeconds(120)
+    $jarvisStartingNotice = $false
     $jarvisReady = $false
     do {
         if ($jarvisStarted.HasExited) { break }
         if (Test-JarvisReady) { $jarvisReady = $true; break }
+        if (-not $jarvisStartingNotice -and (Get-Date) -ge $jarvisStartedAt.AddSeconds(20)) { Write-Host 'JARVIS is still starting…'; $jarvisStartingNotice = $true }
         Start-Sleep -Milliseconds 500
     } while ((Get-Date) -lt $jarvisDeadline)
     if (-not $jarvisReady) {
