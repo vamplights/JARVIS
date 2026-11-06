@@ -4,6 +4,8 @@ import {featuresOf,trainLogistic,predict} from './jarvis-model-core.mjs';
 import {brierScore} from './trend-model.mjs';
 export const CONFIDENCE_PROTOCOL='jarvis-confidence-v2';
 export const MIN_HISTORY=15;
+// Display-only early history. Selection, alerts and training retain their thresholds.
+export const MIN_DISPLAY_HISTORY=5;
 const bounded=p=>Math.max(.01,Math.min(.99,p));
 const aliases={'EMA trend alignment':'34 EMA slope','Relative volume':'Volume confirmation','Market structure':'Not choppy','Higher-timeframe trend':'HTF trend filter'};
 export function confidenceFeatures(s){
@@ -21,8 +23,8 @@ export function fitConfidenceModel(samples,market,now=Date.now()){
  return {...result,model,trainN:training.length,trainEnd:Math.max(...training.map(r=>r.closedAt)),validationStart:cutoff,validationN:heldOut.length,brier,baselineBrier,beatsBaseline:brier!==null&&brier<baselineBrier};
 }
 const band=score=>[90,80,70,60,0].find(b=>score>=b);
-function historyInfo(past,s){
- const exact=past.filter(r=>r.strategy===s.strategy&&(r.variant||'direct')===(s.variant||'direct')&&r.tf===s.tf),bucket=exact.filter(r=>band(r.score)===band(s.score??s.features?.score)),chosen=bucket.length>=MIN_HISTORY?bucket:exact,
+function historyInfo(past,s,minimum=MIN_HISTORY){
+ const exact=past.filter(r=>r.strategy===s.strategy&&(r.variant||'direct')===(s.variant||'direct')&&r.tf===s.tf),bucket=exact.filter(r=>band(r.score)===band(s.score??s.features?.score)),chosen=bucket.length>=minimum?bucket:exact,
   measured=chosen.filter(r=>Number.isFinite(r.realizedR)),historicalAvgR=measured.length===chosen.length&&measured.length?measured.reduce((n,r)=>n+r.realizedR,0)/measured.length:null;
  // Jarvis's daily review mutes setups whose optimistic 90% win-rate bound is
  // below break-even after at least 40 weighted outcomes. Only past labels count.
@@ -30,6 +32,16 @@ function historyInfo(past,s){
  let n=0,w=0;for(const r of setup){const weight=r.source==='historical replay'?1:2;n+=weight;w+=weight*r.y;}
  const z=1.645,p=n?w/n:0,upper=n?(p+z*z/(2*n)+z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n)))/(1+z*z/n):1,breakeven=s.confidenceExitMode==='1.5R'?1/2.5:1/3;
  return {chosen,matchingN:chosen.length,historicalAvgR,muted:n>=40&&upper<breakeven};
+}
+export function confidenceDisplayPrediction(saved,s){
+ const regular=confidencePrediction(saved,s);
+ if(Number.isFinite(regular.probability))return {...regular,displaySource:regular.kind==='historical'?'Matching history':'Trained model',preliminary:true};
+ const asOf=s.confirmedAt??s.features?.asOf,valid=saved?.protocol===CONFIDENCE_PROTOCOL&&(!saved.market||saved.market===s.market)&&Number.isFinite(asOf);
+ const past=valid?(saved.outcomes||[]).filter(r=>Number.isFinite(r.closedAt)&&r.closedAt<asOf&&[0,1].includes(r.y)&&Number.isFinite(r.realizedR)):[],{chosen}=historyInfo(past,s,MIN_DISPLAY_HISTORY),n=chosen.length;
+ const empty={...regular,n,required:MIN_DISPLAY_HISTORY,displaySource:'Collecting data',reason:valid?'Collecting earlier matching outcomes: '+n+'/'+MIN_DISPLAY_HISTORY+'.':'No compatible earlier outcomes are available for this signal.'};
+ if(n<MIN_DISPLAY_HISTORY)return empty;
+ const wins=chosen.reduce((sum,r)=>sum+r.y,0),rate=wins/n,z=1.96,denom=1+z*z/n,center=(rate+z*z/(2*n))/denom,margin=z*Math.sqrt(rate*(1-rate)/n+z*z/(4*n*n))/denom;
+ return {...empty,probability:bounded(rate),kind:'small-sample-history',displaySource:'Small sample',preliminary:true,smallSample:true,interval95:[Math.max(0,center-margin),Math.min(1,center+margin)],drivers:[],reason:'Preliminary historical win rate from '+n+' earlier matching strategy/timeframe outcomes. Small sample; the uncertainty range is wide. This describes the underlying setup, not option-contract profit.'};
 }
 export function confidencePrediction(saved,s){
  if(saved?.market&&s.market&&saved.market!==s.market||saved?.protocol!==CONFIDENCE_PROTOCOL)saved=null;

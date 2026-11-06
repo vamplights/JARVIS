@@ -51,5 +51,12 @@ test('Local API persists journal, enforces shared counters, validates input, and
  const simple=(await get()).journal.find(r=>r.pnl===25);const corrected=await post('/api/journal',{id:simple.id,symbol:'SPY',pnl:30});assert.equal(corrected.status,200);assert.equal((await corrected.json()).record.closedAt,simple.closedAt);
  assert.equal((await post('/api/journal',{pnl:20})).status,400);assert.equal((await post('/api/journal',{symbol:'SPY',pnl:'not a number'})).status,400);
  assert.equal((await post('/api/journal',{market:'options',symbol:'SPY CALL',pnl:10,entry:1,size:1})).status,200);
+ // Recorded percentages are optional metadata and do not replace dollar P/L.
+ for(const value of [8.5,-4.25,0,null]){const response=await post('/api/journal',{symbol:'QQQ',pnl:10,pnlPercent:value});assert.equal(response.status,200);const saved=(await response.json()).record;assert.equal(saved.pnlPercent,value);assert.equal(saved.pnl,10);assert.equal((await get()).journal.find(j=>j.id===saved.id).pnlPercent,value);const exported=await fetch(origin+'/api/export').then(r=>r.json());assert.equal(exported.journal.find(j=>j.id===saved.id).pnlPercent,value);const disk=JSON.parse(await readFile(path.join(dir,'journal-settings.json'),'utf8'));assert.equal(disk.journal.find(j=>j.id===saved.id).pnlPercent,value);}
+ const percentageTrade=(await get()).journal.find(j=>j.pnlPercent===8.5),edit=await post('/api/journal',{...percentageTrade,pnlPercent:-2});assert.equal(edit.status,200);assert.equal((await edit.json()).record.pnlPercent,-2);
+ const omitted=await post('/api/journal',{id:percentageTrade.id,symbol:'QQQ',pnl:10});assert.equal((await omitted.json()).record.pnlPercent,-2);
+ const cleared=await post('/api/journal',{id:percentageTrade.id,symbol:'QQQ',pnl:10,pnlPercent:null});assert.equal((await cleared.json()).record.pnlPercent,null);
+ for(const value of ['bad','Infinity',{},[]]){const invalid=await post('/api/journal',{symbol:'QQQ',pnl:10,pnlPercent:value});assert.equal(invalid.status,400);assert.match((await invalid.json()).error,/valid percent/);}
+
  }finally{child.kill();await new Promise(resolve=>child.exitCode!==null?resolve():child.once('exit',resolve));const resolved=path.resolve(dir);assert.ok(resolved.startsWith(work+path.sep));await rm(resolved,{recursive:true,force:true});}
 });

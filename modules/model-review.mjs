@@ -1,5 +1,5 @@
 import {learningProfile,compatibleSamples,compatibleProfiles} from './learning-compatibility.mjs';
-import {fitConfidenceModel,confidencePrediction,CONFIDENCE_PROTOCOL} from './confidence-model.mjs';
+import {fitConfidenceModel,confidencePrediction,confidenceDisplayPrediction,CONFIDENCE_PROTOCOL} from './confidence-model.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -17,6 +17,14 @@ export class ModelReview {
  pastReport(date){if(!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('Invalid report date');const file=path.join(this.reportDir,date+'.json');if(!fs.existsSync(file))throw Error('Report not found');return JSON.parse(fs.readFileSync(file,'utf8'));}
  estimate(s){const model=this.models[s.market];if(model?.learningProfile!==learningProfile(this.settings())&&model?.profile!==settingsProfile(this.settings()))return estimateProfit(null,s);return estimateProfit(model,s);}
  confidence(s){const m=this.models[s.market];return confidencePrediction(m?.learningProfile===learningProfile(this.settings())||m?.profile===settingsProfile(this.settings())?m.confidence:null,{...s,confidenceExitMode:this.settings().forwardExitMode});}
+ displayConfidence(s){
+  if(s.legacyProfile||s.replay||s.demo)return {probability:null,kind:'unavailable',n:0,required:5,reason:'This signal is outside the current live settings profile.'};
+  const m=this.models[s.market],compatible=m?.learningProfile===learningProfile(this.settings())||m?.profile===settingsProfile(this.settings()),signal={...s,confidenceExitMode:this.settings().forwardExitMode},estimate=confidenceDisplayPrediction(compatible?m.confidence:null,signal),asOf=s.confirmedAt??s.features?.asOf;
+  if(Number.isFinite(estimate.probability))return estimate;
+  // Use a fresh compatible model calculation, never a frozen estimate from a different cohort.
+  if(compatible&&m.protocol===MODEL_PROTOCOL&&Number.isFinite(asOf)&&Number.isFinite(m.trainEnd)&&m.trainEnd<asOf){const fallback=estimateProfit(m,s);if(Number.isFinite(fallback.probability)&&fallback.probability>=0&&fallback.probability<=1)return {...fallback,kind:'profit-model-fallback',displaySource:'Profit model',preliminary:true,reason:'Preliminary underlying-outcome model estimate. '+fallback.reason};}
+  return estimate;
+ }
  learningEvidence(forward=this.forward()){
   return [...Object.entries(this.profileRegistry).map(([profile,settings])=>({profile,settings})),...this.profileSettings(),...forward.filter(r=>r.settings).map(r=>({profile:r.profile,settings:r.settings})),...(this.ledgerRows('signals')).filter(r=>r.settings).map(r=>({profile:r.profile,settings:r.settings}))];
  }

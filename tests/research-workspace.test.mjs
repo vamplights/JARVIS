@@ -24,6 +24,6 @@ test('Independent section refreshes preserve the replay form and initialize ever
 });
 test('Jarvis 1.75 changes the displayed release without rewriting protocol identifiers or the JARVIS tab title',()=>{
  assert.equal(VERSION,'Jarvis 1.75');const pkg=JSON.parse(fs.readFileSync(new URL('../package.json',import.meta.url),'utf8'));assert.equal(pkg.version,'1.75.0');
- const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(app,/Jarvis 1.75/);assert.match(app,/intelligence:'Research, Confidence & Outcomes'/);assert.ok(!app.includes("performance:'Signal Outcomes'"));assert.match(html,/<title>JARVIS<\/title>/);
+ const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8'),html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');assert.match(app,/JARVIS 1.75/);assert.match(app,/intelligence:'Research, Confidence & Outcomes'/);assert.ok(!app.includes("performance:'Signal Outcomes'"));assert.match(html,/<title>JARVIS<\/title>/);
  const auto=fs.readFileSync(new URL('../modules/auto-paper.mjs',import.meta.url),'utf8');assert.match(auto,/beta010-paper-v1/);
 });

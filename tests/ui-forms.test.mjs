@@ -16,9 +16,10 @@ test('Session status moves globally and Read Only explains local writes versus r
  const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');assert.equal((app.match(/sessionStatusBadge\(state.session,esc\)/g)||[]).length,1);assert.ok(!app.includes("badge(state.session.stocks?'US SESSION':'CRYPTO SESSION'"));
 });
 test('Manual journal form retains every record field once and separates essentials from optional context',()=>{
- const record={id:'old',symbol:'SPY',market:'options',entry:1.25,exit:1.4,size:2,contractMultiplier:100,pnl:28,closedAt:'2026-10-15T10:30',plannedRisk:25,signalId:'signal',notes:'<script>alert(1)</script>',reference:'chart',decision:'taken'};
+ const record={id:'old',symbol:'SPY',market:'options',entry:1.25,exit:1.4,size:2,contractMultiplier:100,pnl:28,closedAt:'2026-10-15T10:30',plannedRisk:25,signalId:'signal',pnlPercent:-4.5,notes:'<script>alert(1)</script>',reference:'chart',decision:'taken'};
  const html=manualTradeForm(record,helpers),names=[...html.matchAll(/name="([^"]+)"/g)].map(m=>m[1]);
- assert.deepEqual(names.sort(),['id','time','market','symbol','decision','strategy','signalId','plannedEntry','stop','exitScenario','plannedRisk','reasonCode','entry','exit','size','contractMultiplier','pnl','closedAt','reference','notes'].sort());
+ assert.deepEqual(names.sort(),['id','time','market','symbol','decision','strategy','signalId','plannedEntry','stop','exitScenario','plannedRisk','reasonCode','entry','exit','size','contractMultiplier','pnl','pnlPercent','closedAt','reference','notes'].sort());
+ assert.match(html,/name="pnlPercent" value="-4.5"/);
  assert.match(html,/Profit &amp; loss/);assert.match(html,/Optional trade details/);assert.match(html,/name="entry" value="1.25"/);assert.match(html,/name="contractMultiplier" value="100"/);assert.ok(!html.includes('<script>'));
  assert.match(html,/<details class="journal-form-details"><summary>Optional trade details/);
  const required=[...html.matchAll(/<input[^>]*>/g)].filter(m=>/\brequired\b/.test(m[0])).map(m=>m[0].match(/name="([^"]+)"/)[1]);assert.deepEqual(required,['symbol','pnl']);

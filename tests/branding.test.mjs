@@ -24,3 +24,16 @@ test('Large category type is scoped to transient popups, not the notification in
  const inbox=app.slice(app.indexOf('function renderNotificationInbox'),app.indexOf('function toggleNotificationSeen'));
  assert.ok(!inbox.includes('signal-notification-category'));assert.match(popup,/setTimeout\(dismissSignalNotice,3000\)/);
 });
+
+
+test('Sidebar connection badge follows local server availability',()=>{
+ const app=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
+ assert.match(app,/id="sidebar-connection" role="status" aria-live="polite"/);
+ assert.doesNotMatch(app,/Jarvis/);assert.match(app,/class="sidebar-version">JARVIS 1\.75/);
+ assert.doesNotMatch(app,/Your analysis\. Your decisions\.|Manual execution only\./);
+ const body=app.slice(app.indexOf('function top(){')+'function top(){'.length,app.indexOf('const brandSubtitle=',app.indexOf('function top(){')));
+ const classes=new Set(),text={textContent:''},badge={classList:{toggle:(name,enabled)=>enabled?classes.add(name):classes.delete(name)},querySelector:()=>text};
+ const update=new Function('$','networkError',body);
+ update(()=>badge,false);assert.equal(text.textContent,'JARVIS online');assert.equal(classes.has('offline'),false);
+ update(()=>badge,true);assert.equal(text.textContent,'JARVIS offline');assert.equal(classes.has('offline'),true);
+});
