@@ -4,19 +4,29 @@
 
 # JARVIS
 
+## Alpaca API and Robinhood MCP Connection required
+
 A local workspace for stock, options, and crypto research. Follow the market, review signal cards and Top Picks, and track ideas through paper trading in one browser dashboard.
 
 JARVIS runs on your computer with Node.js. It combines live and historical market data with strategy evaluation, charts, journals, and local learning tools. It does not route real orders.
 
 ## 🔎 Inside the workspace
 
-- **Market charts:** explore stocks and crypto with timeframe controls, EMA and VWAP overlays, and visible feed status. An optional Alpaca connection supplies stock chart data; crypto charts use the existing Coinbase feed.
-- **Signals and Top Picks:** review completed-candle setups, entry plans, risk levels, source freshness, and model estimates. Setup scores and estimated win percentages are presented separately; preliminary estimates are not evidence of a profitable edge.
-- **Options research:** inspect contract plans and available quotes alongside stock setups, with a separate manual option sandbox for testing ideas.
-- **Paper trading and review:** follow simulated entries and exits, compare outcomes, and keep a local journal. Research and model results depend on the available data and the settings used to collect them.
-- **Chart Pattern Analysis:** turn on an independent research workspace for formations, chart drawings, detection evidence, and historical analysis records. It defaults to **OFF** and does not feed signals, Top Picks, notifications, paper trades, or model training.
+JARVIS is like your **Fortnite squadmate in the chair**: it watches the map, calls out opportunities, and keeps track of how your matches went. You’re still the one holding the controller and deciding whether to take the fight.
 
-Available history and live coverage depend on the connected provider. Source and freshness labels matter: delayed, imported, or fallback data should be read in that context.
+- **Watchlist:** Your map markers—the stocks and crypto you want JARVIS to keep an eye on.
+- **Signal Radar:** Enemy callouts. JARVIS spots a setup and says whether it looks bullish or bearish.
+- **Top Picks:** The callouts that pass more of your selected checks. Think “good opportunity,” not “guaranteed elimination.”
+- **Entry area:** The spot where JARVIS thinks the fight setup makes sense.
+- **Stop:** Your escape point—where the idea is considered wrong and it’s time to cut the loss.
+- **Target:** A possible place to take profit if the move goes your way.
+- **Confidence estimate:** A rough odds estimate based on earlier outcomes. If it says **small sample**, that’s like judging a landing spot after only a handful of matches.
+- **Paper trading:** Creative practice with simulated money. JARVIS tracks what might have happened without placing a real order.
+- **Trade Journal:** Your match history—what you took, skipped, won, or lost.
+- **News and Movers:** The kill feed and map updates, showing what’s moving and what news might matter.
+- **Strategy Lab:** Your loadout screen, where you can review and enable the setups JARVIS watches for.
+
+JARVIS can make a callout, but it can’t see the future. A high-confidence setup can still get third-partied by unexpected news or a sudden price move.
 
 ## 🚀 Get started
 
