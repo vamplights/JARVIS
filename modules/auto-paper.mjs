@@ -7,6 +7,8 @@ import {nextSessionOpen,sessionExit} from './beta-strategies.mjs';
 import {signalFeatures} from './trend-model.mjs';
 import {settingsProfile,summarizeR} from './stats.mjs';
 import {writeJSON} from './public-market.mjs';
+import {backupOriginal} from './record-archive.mjs';
+const terminal=r=>!!r.closedAt||['missed fill','unmeasurable'].includes(r.state);
 const fresh=(q,now,s)=>q?.price>0&&Number.isFinite(q.time)&&q.time<=now&&now-q.time<=s.staleSeconds*1000;
 const closed=r=>Number.isFinite(r.realizedR);
 export function paperQualification(s,settings){if(s.legacyProfile||s.replay||s.conflicted||s.tf===1||!['CONFIRMED','WATCH','SETUP FORMING'].includes(s.status))return null;const p=s.profitEstimate;if(Number.isFinite(p?.probability)&&p.status!=='learning')return p.probability>=settings.autoPaperMinProb?'calibrated':null;return s.status==='CONFIRMED'?'uncalibrated':null;}
@@ -24,9 +26,28 @@ export function realisticAccount(rows,settings){const trades=[],skipped=[],activ
  return {trades,skipped,startingCapital:settings.capital,...realizedSummary(trades),open:trades.filter(r=>!closed(r)),note:'Cash and risk limits applied chronologically, one exit-style scenario at a time. Equity and cash are simulated. Shorts assume borrow; no borrow charges are modeled.'};
 }
 export class AutoPaper {
- constructor({dir,settings,now=()=>Date.now()}){Object.assign(this,{dir,settings,now});this.file=dir?path.join(dir,'auto-paper.json'):null;this.data={protocol:'beta010-paper-v1',rows:[],reports:{}};try{if(this.file)this.data=JSON.parse(fs.readFileSync(this.file,'utf8'));}catch(e){if(e.code!=='ENOENT')throw Error('Auto-paper ledger unreadable; preserved for repair');}this.error=null;this.barTimes=new Map();}
- save(){if(this.file)writeJSON(this.file,this.data);}
- saveSoon(){if(this.file)saveDeferred(this);}
+ constructor({dir,settings,now=()=>Date.now()}){Object.assign(this,{dir,settings,now});this.file=dir?path.join(dir,'auto-paper.json'):null;this.data={protocol:'beta010-paper-v1',rows:[],reports:{}};this.closedFile=dir?path.join(dir,'auto-paper-closed.json'):null;try{if(this.file)this.data=this.load();}catch(e){if(e.code!=='ENOENT'||fs.existsSync(this.file))throw Error('Auto-paper ledger unreadable; preserved for repair');}this.error=null;this.barTimes=new Map();}
+ save(){if(this.file)this.write(this.data.rows);}
+ // Closed rows almost never change, so they live in their own file and the frequent save rewrites only open rows.
+ // shortcut: the closed file is rewritten only when the count of closed or archived rows changes; code that edits a closed row any other way must clear this.closedMark.
+ write(rows){
+  const closed=[],open=[],positions=[];let archived=0;
+  rows.forEach((r,i)=>{if(terminal(r)){closed.push([i,r]);if(r.forwardArchived)archived++;}else{open.push(r);positions.push(i);}});
+  if(this.singleFile){backupOriginal(this.file,'.before-closed-split');this.singleFile=false;}
+  const mark=closed.length+'|'+archived;if(mark!==this.closedMark){writeJSON(this.closedFile,{rows:closed});this.closedMark=mark;}
+  writeJSON(this.file,{...this.data,rows:open,positions,closedCount:closed.length});
+ }
+ load(){
+  const data=JSON.parse(fs.readFileSync(this.file,'utf8'));if(!Array.isArray(data.positions)){this.singleFile=true;return data;}
+  const {positions,closedCount,...rest}=data,closed=JSON.parse(fs.readFileSync(this.closedFile,'utf8')).rows,rows=[],ids=new Set();
+  if(closed.length<closedCount)throw Error('Auto-paper closed rows are missing');
+  for(const [i,r] of closed){rows[i]=r;ids.add(r.id);}
+  // A crash between the two writes can leave a just-closed row in both files; the closed copy is the newer one.
+  data.rows.forEach((r,i)=>{if(!ids.has(r.id))rows[positions[i]]=r;});
+  return {...rest,rows:Object.values(rows)};
+ }
+ // The full ledger is large; open rows are re-resolved from candles, so coalesce rewrites to one per 20 s.
+ saveSoon(){if(this.file)saveDeferred(this,20000);}
  flush(){flushDeferred(this);}
  observe(signals,assets,now=this.now()){
   const s=this.settings(),profile=settingsProfile(s),known=new Set(this.data.rows.map(r=>r.id));let changed=false;

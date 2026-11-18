@@ -7,7 +7,7 @@ export function saveDeferred(owner,intervalMs=DEFAULT_INTERVAL_MS,deferFirst=fal
  const wait=(owner.lastSaved||0)+intervalMs-Date.now();
  if(wait<=0&&!deferFirst){clearDeferred(owner);persist(owner,intervalMs);return;}
  owner.dirty=true;pending.add(owner);hook();
- if(!owner.saveTimer){owner.saveTimer=setTimeout(()=>{owner.saveTimer=null;if(owner.dirty)flushDeferred(owner);},Math.max(1,wait));owner.saveTimer.unref?.();}
+ if(!owner.saveTimer){owner.saveTimer=setTimeout(()=>{owner.saveTimer=null;if(owner.dirty)try{flushDeferred(owner);}catch(e){console.error('Deferred save failed: '+e.message);}},Math.max(1,wait));owner.saveTimer.unref?.();}
 }
 export function flushDeferred(owner){const wasDirty=owner.dirty;clearDeferred(owner);if(wasDirty)persist(owner,DEFAULT_INTERVAL_MS);}
 function persist(owner,interval){

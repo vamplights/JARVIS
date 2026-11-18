@@ -1,6 +1,7 @@
 import {startManualLearning,resolveManualLearning,manualLearningSummary} from './manual-learning.mjs';
 import {marketCosts} from './engine.mjs';
 import fs from 'node:fs';
+import {writeFileAtomic} from './atomic-write.mjs';
 import path from 'node:path';
 import {PaperLedger} from './paper-ledger.mjs';
 import {settingsProfile} from './stats.mjs';
@@ -11,7 +12,7 @@ const book=(q,now,seconds)=>fresh(q,now,seconds)&&Number.isFinite(q.bid)&&q.bid>
 export function sandboxPremium(t,spot,now){return Math.max(.01,t.anchorPremium+t.delta*(spot-t.anchorUnderlying)-t.anchorPremium*Math.min(1,Math.max(0,now-t.openedAt)/Math.max(1,t.expirationAt-t.openedAt)));}
 export class ManualOptionSandbox{
  constructor(dir){this.file=path.join(dir,'manual-option-simulations.json');try{this.data=JSON.parse(fs.readFileSync(this.file,'utf8'));if(!Array.isArray(this.data.trades))throw Error('Invalid sandbox ledger');}catch(e){if(e.code!=='ENOENT')throw Error('Manual simulation ledger cannot be read; original file preserved');this.data={version:1,trades:[]};}}
- save(){const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify(this.data));fs.renameSync(tmp,this.file);}
+ save(){writeFileAtomic(this.file,JSON.stringify(this.data));}
  submit(signal,options,assets,settings,now=Date.now(),contractId,learningContext={}){
   const prior=this.data.trades.find(t=>t.signalId===signal?.id);if(prior)return {trade:prior,duplicate:true};
   if(!signal?.id||!['stocks','crypto'].includes(signal.market)||typeof signal.symbol!=='string'||!/^[A-Z0-9.-]{1,15}$/.test(signal.symbol))throw Error('Choose a stock or crypto signal to simulate.');

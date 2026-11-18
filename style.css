@@ -723,6 +723,9 @@ section[id^="top-picks-"]>.panel-head h2{color:var(--amber)}section[id^="top-pic
 .pattern-health [data-direction="bullish"],.pattern-finding[data-direction="bullish"] h3{color:var(--green)}
 .pattern-health [data-direction="bearish"],.pattern-finding[data-direction="bearish"] h3{color:var(--red)}
 .pattern-finding[data-direction="neutral"] h3{color:var(--amber)}
+.pattern-overlay[data-direction="bullish"]{color:var(--green)}
+.pattern-overlay[data-direction="bearish"]{color:var(--red)}
+.pattern-overlay[data-direction="neutral"]{color:var(--amber)}
 .pattern-panel .panel-head{padding:13px 15px}.pattern-panel .panel-head h2{font-size:14px}
 .pattern-panel .panel-body{padding:14px;font-size:12px}.pattern-panel .panel-body p{line-height:1.5}
 .pattern-current-read{padding:11px 12px;margin:10px 0;border-radius:7px}.pattern-current-read h3{font-size:15px;margin-bottom:5px}.pattern-current-read p{font-size:12px}

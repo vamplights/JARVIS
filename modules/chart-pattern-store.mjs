@@ -1,6 +1,7 @@
 import {RecordArchive,backupOriginal} from './record-archive.mjs';
 import {saveDeferred,flushDeferred} from './deferred-save.mjs';
 import fs from 'node:fs';
+import {renameReplace} from './atomic-write.mjs';
 import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 import {atr} from './engine.mjs';
@@ -38,9 +39,9 @@ export class ChartPatternStore {
  remember(r){if(!this.order.has(r.id))this.order.set(r.id,this.archived.get(r.id)??this.order.size);const key=[r.symbol,r.tf,r.source].join('|');this.records.set(r.id,r);if(!this.active.has(key))this.active.set(key,new Set());if(['failed','expired'].includes(r.status))this.active.get(key).delete(r.id);else this.active.get(key).add(r.id);
   const recent=(this.recent.get(key)||[]).filter(id=>id!==r.id);recent.push(r.id);this.recent.set(key,recent.slice(-500));this.recentGlobal=this.recentGlobal.filter(id=>id!==r.id);this.recentGlobal.push(r.id);this.recentGlobal=this.recentGlobal.slice(-200);this.revision++;
  }
- saveSoon(){saveDeferred(this,5000,true);}
+ saveSoon(){saveDeferred(this,20000,true);}
  flush(){flushDeferred(this);}
- save(){if(this.error)throw Error(this.error);try{this.compact();const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify({...this.data,archiveSegments:this.archive.manifest,records:[...this.records.values()]}));fs.renameSync(tmp,this.file);this.writeGeneration++;this.dirty=false;this.lastSaved=Date.now();this.writeError=null;}catch(e){this.writeError='Pattern save failed: '+e.message;this.dirty=true;return false;}}
+ save(){if(this.error)throw Error(this.error);try{this.compact();const tmp=this.file+'.tmp';fs.writeFileSync(tmp,JSON.stringify({...this.data,archiveSegments:this.archive.manifest,records:[...this.records.values()]}));renameReplace(tmp,this.file);this.writeGeneration++;this.dirty=false;this.lastSaved=Date.now();this.writeError=null;}catch(e){this.writeError='Pattern save failed: '+e.message;this.dirty=true;return false;}}
  // Explicit settings changes acknowledge a durable snapshot, including any
  // pending evaluation. Serialize explicit writers; a newer timer/shutdown
  // flush takes precedence over an older in-flight snapshot.
@@ -49,7 +50,7 @@ export class ChartPatternStore {
    const result=this.configure(p),generation=this.writeGeneration,tmp=this.file+'.config.tmp';
    const bytes=JSON.stringify({...this.data,archiveSegments:this.archive.manifest,records:[...this.records.values()]});
    await fs.promises.writeFile(tmp,bytes);
-   if(generation===this.writeGeneration){fs.renameSync(tmp,this.file);this.writeGeneration++;}
+   if(generation===this.writeGeneration){renameReplace(tmp,this.file);this.writeGeneration++;}
    else await fs.promises.unlink(tmp);
    return result;
   });

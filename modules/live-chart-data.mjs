@@ -18,6 +18,22 @@ export function upsertChartBar(rows,bar,limit=10000){
  rows.splice(i,0,bar);if(rows.length>limit)rows.shift();return 'insert';
 }
 
+// A poll usually changes only the forming candle or appends new ones. Update those in
+// place; any earlier difference returns false so the caller repaints every series.
+export function applyChartTail(view,next){
+ const rows=view.rows,lines=view.lines||[];
+ if(!rows?.length||view.display!==rows||next.length<rows.length||lines.some(line=>line.states.length!==rows.length))return false;
+ const same=(a,b)=>a.time===b.time&&a.open===b.open&&a.high===b.high&&a.low===b.low&&a.close===b.close&&a.volume===b.volume&&a.closeTime===b.closeTime&&(a.complete!==false)===(b.complete!==false);
+ const last=rows.length-1;
+ if(next[last].time!==rows[last].time)return false;
+ for(let i=0;i<last;i++)if(!same(rows[i],next[i]))return false;
+ for(let i=last;i<next.length;i++){
+  const b=next[i];rows[i]=b;
+  view.candles.update(b);view.volume.update(volumePoint(b));
+  for(const line of lines){const state=line.step(line.states[i-1],b);line.states[i]=state;line.series.update(state.point);}
+ }
+ return true;
+}
 export const volumePoint=b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?'#39b98e44':'#e7748444'});
 export function updateChartTail({raw,rows,candles,volume,lines},start,tf,now){
   const buckets=aggregate(raw.slice(barIndex(raw,start)),tf,60,now);

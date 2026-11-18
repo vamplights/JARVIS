@@ -8,7 +8,6 @@ import {marketCosts,session,roundTripCost,rewardMetrics} from './engine.mjs';
 import {sessionExit} from './beta-strategies.mjs';
 import {signalFeatures} from './trend-model.mjs';
 import {settingsProfile} from './stats.mjs';
-import {writeJSON} from './public-market.mjs';
 const PROTOCOL='jarvis-forward-v1',MAX=3000;
 const direction=s=>s.dir>0?'bullish':'bearish';
 export function confirmedForwardEligible(sig,settings,now){
@@ -41,7 +40,7 @@ export class JarvisForward extends AutoPaper{
    if(row.forwardProtocol===EMA9_PROTOCOL&&!row.settings)throw Error('Missing EMA9 paper settings for '+row.id);
   }
   this.minuteRefresh=new Map();this.refreshing=false;}
- save(){if(!this.file)return;if(this.inlineEmaSettings){backupOriginal(this.file,'.before-ema-settings-pool');this.inlineEmaSettings=false;}const rows=this.data.rows.map(row=>{if(![PROTOCOL,EMA9_PROTOCOL].includes(row.forwardProtocol)||!this.data.forwardSettings[row.profile])return row;const {settings,...stored}=row;return stored;});writeJSON(this.file,{...this.data,rows});}
+ save(){if(!this.file)return;if(this.inlineEmaSettings){backupOriginal(this.file,'.before-ema-settings-pool');this.inlineEmaSettings=false;}const rows=this.data.rows.map(row=>{if(![PROTOCOL,EMA9_PROTOCOL].includes(row.forwardProtocol)||!this.data.forwardSettings[row.profile])return row;const {settings,...stored}=row;return stored;});this.write(rows);}
  // Stock-chart outcomes train confidence without appearing as share trades.
  observeWithSetupLearning(signals,assets,now=this.now()){
   return this.observe(signals.map(s=>s.market==='stocks'?{...s,learningOnly:true}:s),assets,now);

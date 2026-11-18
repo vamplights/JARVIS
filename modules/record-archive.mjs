@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {renameReplace} from './atomic-write.mjs';
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 export function backupOriginal(file,suffix='.before-archive'){
  if(!fs.existsSync(file))return;
@@ -11,7 +12,7 @@ export function backupOriginal(file,suffix='.before-archive'){
  const bytes=fs.readFileSync(file),tmp=backup+'.tmp';
  fs.writeFileSync(tmp,bytes);
  if(digest(fs.readFileSync(tmp))!==digest(bytes))throw Error('Backup verification failed');
- fs.renameSync(tmp,backup);
+ renameReplace(tmp,backup);
 }
 export class RecordArchive{
  constructor(dir,manifest=[]){this.dir=dir;this.manifest=[...manifest];}
@@ -24,7 +25,7 @@ export class RecordArchive{
  append(segment){
   const bytes=JSON.stringify(segment),id=digest(bytes),file=path.join(this.dir,id+'.json');
   fs.mkdirSync(this.dir,{recursive:true});
-  if(!fs.existsSync(file)){const tmp=file+'.tmp';fs.writeFileSync(tmp,bytes);fs.renameSync(tmp,file);}
+  if(!fs.existsSync(file)){const tmp=file+'.tmp';fs.writeFileSync(tmp,bytes);renameReplace(tmp,file);}
   this.read(id);
   if(!this.manifest.includes(id))this.manifest.push(id);
  }

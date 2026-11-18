@@ -1,5 +1,22 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {THEMES,readTheme,applyTheme,themeSettings,pnlTone,journalView,journalSummary} from '../modules/visual-settings.mjs';import {expectancyTable} from '../modules/outcome-view.mjs';
+import {THEMES,readTheme,applyTheme,themeSettings,pnlTone,journalView,journalSummary,exportBrowserPreferences,importBrowserPreferences} from '../modules/visual-settings.mjs';import {expectancyTable} from '../modules/outcome-view.mjs';
+
+test('Browser preference transfer moves only allowed interface settings and keeps unrelated values',()=>{
+ const theme='jarvis.appearance.theme.v1',marketPulse='jarvis.overview.v1',layout='jarvis.sidebar-layout.v1';
+ const source=new Map([[theme,'ocean'],[marketPulse,'{"period":"day"}'],[layout,'{"groups":[]}'],['broker-token','test secret']]);
+ const target=new Map([['broker-token','already saved'],['jarvis.movers-sort.v1','{"key":"change"}']]);
+ const store=values=>({getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)});
+ const exported=exportBrowserPreferences(store(source));
+ assert.doesNotMatch(exported,/broker-token|test secret/);
+ assert.equal(importBrowserPreferences(store(target),exported),3);
+ assert.equal(target.get(theme),'ocean');
+ assert.equal(target.get(marketPulse),'{"period":"day"}');
+ assert.equal(target.get(layout),'{"groups":[]}');
+ assert.equal(target.get('broker-token'),'already saved');
+ assert.equal(target.get('jarvis.movers-sort.v1'),'{"key":"change"}');
+ assert.throws(()=>importBrowserPreferences(store(target),JSON.stringify({version:1,preferences:{[theme]:'midnight','broker-token':'modified'}})),/unsupported/);
+ assert.equal(target.get(theme),'ocean');
+});
 const now=Date.parse('2026-10-23T18:00:00Z'),row=(pnl,closedAt,extra={})=>({symbol:'SPY',decision:'taken',pnl,closedAt,time:closedAt,...extra});
 test('Journal periods use closure dates in the selected timezone and exclude open/skipped P&L',()=>{const rows=[row(10,'2026-10-23T16:00Z'),row(-3,'2026-10-20T16:00Z'),row(20,'2026-10-02T16:00Z'),row(50,'2026-09-30T16:00Z'),row(999,null,{time:'2026-10-23T16:00Z'}),row(999,'2026-10-23T16:00Z',{decision:'skipped'}),row(0,'2026-10-23T17:00Z')],opts={now,timezone:'America/Los_Angeles'};assert.equal(journalView(rows,{...opts,period:'today'}).pnl,10);assert.equal(journalView(rows,{...opts,period:'week'}).pnl,7);assert.equal(journalView(rows,{...opts,period:'month'}).pnl,27);const all=journalView(rows,opts);assert.equal(all.pnl,77);assert.equal(all.n,5);assert.equal(all.open,1);assert.equal(journalView(rows,{...opts,sort:'lowest'}).rows[0].pnl,-3);assert.equal(journalView(rows,{...opts,sort:'oldest'}).rows[0].pnl,50);});
 test('Weekly/monthly periods handle year rollover, timezone midnight and daylight saving boundaries',()=>{const rows=[row(5,'2026-12-31T23:00Z'),row(7,'2027-01-01T07:30Z'),row(9,'2027-01-01T18:00Z')],opts={now:Date.parse('2027-01-01T20:00Z'),timezone:'America/Los_Angeles'};assert.equal(journalView(rows,{...opts,period:'today'}).pnl,9);assert.equal(journalView(rows,{...opts,period:'month'}).pnl,9);assert.equal(journalView(rows,{...opts,period:'week'}).pnl,21);assert.equal(journalView([row(4,'2026-11-01T08:30Z')],{now:Date.parse('2026-11-01T10:00Z'),timezone:'America/Los_Angeles',period:'today'}).pnl,4);});

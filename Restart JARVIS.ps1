@@ -15,8 +15,15 @@ if ($jarvisListeners.Count -gt 0) {
         if ($jarvisProcess.Name -ne 'node.exe' -or $jarvisProcess.CommandLine -notmatch '(?:^|[\s"/\\])server\.mjs(?:[\s"]|$)') {
             throw 'The listening process could not be verified as JARVIS. Nothing was stopped.'
         }
-        Stop-Process -Id $jarvisProcessId
-        Wait-Process -Id $jarvisProcessId -Timeout 10 -ErrorAction SilentlyContinue
+        # Ask JARVIS to save and exit first; force-stop only if it is still running.
+        try {
+            Invoke-WebRequest -UseBasicParsing -Method Post -Uri "http://127.0.0.1:$jarvisPort/api/shutdown" -Headers @{ Origin = "http://127.0.0.1:$jarvisPort" } -ContentType 'application/json' -Body '{}' -TimeoutSec 5 | Out-Null
+            Wait-Process -Id $jarvisProcessId -Timeout 10 -ErrorAction SilentlyContinue
+        } catch {}
+        if (Get-Process -Id $jarvisProcessId -ErrorAction SilentlyContinue) {
+            Stop-Process -Id $jarvisProcessId
+            Wait-Process -Id $jarvisProcessId -Timeout 10 -ErrorAction SilentlyContinue
+        }
     }
 }
 & (Join-Path $PSScriptRoot 'Start JARVIS.ps1') -NoBrowser

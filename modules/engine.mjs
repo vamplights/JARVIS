@@ -42,7 +42,7 @@ Object.assign(DEFAULTS.strategyFrames,{'orb-in-play':[3,5],'spy-qqq-momentum':[1
 DEFAULTS.strategies.push('orb-in-play','spy-qqq-momentum','post-earnings','daily-trend');
 export const signalFrames=(s,market)=>market==='crypto'?(s.cryptoFrames||[s.cryptoFrame]):s.stockFrames;
 export function migrateBetaSettings(saved){const s=migrateSettings(saved);if(!saved.ema9VwapVersion){s.strategies=[...new Set([...s.strategies,'ema9-vwap-retest'])];s.ema9VwapVersion=1;s.strategyFrames['ema9-vwap-retest']=[3];s.strategyMarketFrames={...s.strategyMarketFrames,stocks:{...s.strategyMarketFrames?.stocks,['ema9-vwap-retest']:[3]},crypto:{...s.strategyMarketFrames?.crypto,['ema9-vwap-retest']:[]}};if(!s.stockFrames.includes(3))s.stockFrames.push(3);}if(saved.betaVersion!==1){s.betaVersion=1;s.cryptoAfterHours=false;s.stockFrames=[3,5,15];s.cryptoFrames=[60,1440];s.cryptoFrame=60;s.strategyFrames=structuredClone(DEFAULTS.strategyFrames);s.strategyMarketFrames={};s.strategies=[...new Set([...s.strategies.filter(k=>k!=='momentum'),...['orb-in-play','spy-qqq-momentum','post-earnings','daily-trend']])];s.minStopBps={stocks:Math.max(25,s.minStopBps.stocks),crypto:Math.max(40,s.minStopBps.crypto)};}for(const k of ['inPlay','scanner','special','service'])s[k]={...DEFAULTS[k],...s[k]};return s;}
-const formatters=new Map(),datePartsCache=new Map();
+const formatters=new Map(),zoneOffsets=new Map(),zoneParts=new Map();
 // Saved strategy preferences change only with an explicit migration flag. Legacy flat costs
 // belong to crypto; copying them to stocks was the original cost-model defect.
 export function migrateSettings(saved={}, {existing=true,migrateStrategyFrames=false}={}) {
@@ -70,11 +70,27 @@ export function roundTripCost(entry,exit,market,s=DEFAULTS,quote=null){const c=m
 export function rewardMetrics(entry,stop,target,market,s=DEFAULTS,quote=null){const distance=Math.abs(entry-stop),cost=roundTripCost(entry,target,market,s,quote),reward=Math.abs(target-entry);return {costs:cost,costsAsRiskPct:distance?100*cost/distance:null,rr:distance?reward/distance:null,netRR:distance?(reward-cost)/distance:null,netLossR:distance?(distance+roundTripCost(entry,stop,market,s,quote))/distance:null,netRewardRisk:distance?(reward-cost)/(distance+roundTripCost(entry,stop,market,s,quote)):null};}
 export function stopFloor(entry,swingStop,dir,atrValue,market,s=DEFAULTS,quote=null){const c=marketCosts(s,market,quote),costBps=2*c.feeBps+2*c.slippageBps+c.spreadBps;const distance=Math.max(Math.abs(entry-swingStop),(s.minStopATR??0.75)*atrValue,entry*(s.minStopBps?.[market]??DEFAULTS.minStopBps[market])/10000,entry*costBps*(s.minStopCostMultiple??4)/10000);return {stop:entry-dir*distance,stopATR:distance/atrValue,stopBps:distance/entry*10000,widened:distance>Math.abs(entry-swingStop)+1e-12};}
 export function stockEntryBlocked(now,s=DEFAULTS){const m=parts(now,'America/New_York').minutes;if(s.filters?.events&&s.eventBlocks?.firstFiveMinutes&&m>=570&&m<575)return true;return (s.stockNoEntry??DEFAULTS.stockNoEntry).some(range=>{const [start,end]=range.split('-').map(minutes);return m>=start&&m<end;});}
+// Time-zone rules never change inside a quarter hour, so one lookup per zone and quarter hour
+// replaces a formatter call per timestamp (this was half of all signal evaluation time).
+function zoneOffset(time,zone){
+ const slot=Math.floor(time/900000);let slots=zoneOffsets.get(zone);if(!slots){slots=new Map();zoneOffsets.set(zone,slots);}
+ let offset=slots.get(slot);
+ if(offset===undefined){
+  if(!formatters.has(zone))formatters.set(zone,new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}));
+  const p=Object.fromEntries(formatters.get(zone).formatToParts(new Date(slot*900000)).map(x=>[x.type,x.value]));
+  offset=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-slot*900000;
+  if(slots.size>=100000)slots.clear();slots.set(slot,offset);
+ }
+ return offset;
+}
+const two=n=>n<10?'0'+n:String(n);
 export function parts(t,zone='America/Los_Angeles') {
- const dateValue=new Date(t),cacheKey=zone+'|'+dateValue.getTime();if(datePartsCache.has(cacheKey))return datePartsCache.get(cacheKey);
- if(!formatters.has(zone))formatters.set(zone,new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}));
- const p=Object.fromEntries(formatters.get(zone).formatToParts(dateValue).map(x=>[x.type,x.value]));
- const result=Object.freeze({...p,date:`${p.year}-${p.month}-${p.day}`,minutes:+p.hour*60 + +p.minute});if(datePartsCache.size>=50000)datePartsCache.delete(datePartsCache.keys().next().value);datePartsCache.set(cacheKey,result);return result;
+ const time=new Date(t).getTime();let seen=zoneParts.get(zone);if(!seen){seen=new Map();zoneParts.set(zone,seen);}
+ const known=seen.get(time);if(known)return known;
+ const d=new Date(time+zoneOffset(time,zone)),year=String(d.getUTCFullYear()),month=two(d.getUTCMonth()+1),day=two(d.getUTCDate()),hours=d.getUTCHours(),mins=d.getUTCMinutes();
+ const result=Object.freeze({year,literal:':',month,day,hour:two(hours),minute:two(mins),second:two(d.getUTCSeconds()),date:`${year}-${month}-${day}`,minutes:hours*60+mins});
+ // Candle times repeat on every pass; keep their parts, bounded per zone.
+ if(seen.size>=200000)seen.clear();seen.set(time,result);return result;
 }
 export const minutes=s=>+s.split(':')[0]*60 + +s.split(':')[1];
 export function dayKey(t,s=DEFAULTS) { const p=parts(t,s.timezone); return p.minutes<minutes(s.reset)?new Date(Date.parse(p.date+'T12:00:00Z')-86400000).toISOString().slice(0,10):p.date; }
@@ -134,6 +150,17 @@ export function vwap(bars,market='crypto',interval=null){
 }
 export function positionSize(entry,stop,market,s=DEFAULTS,quote=null){const distance=Math.abs(entry-stop),c=marketCosts(s,market,quote),cost=roundTripCost(entry,stop,market,s,quote);let size=distance>0?Math.min(Math.min(s.risk,s.capital*(s.riskPercent??100)/100)/(distance+cost),s.capital/(entry*(1+c.feeBps/10000))):0;size=market==='stocks'?Math.floor(size):Math.floor(size*1e8)/1e8;return {size,plannedRisk:size*(distance+cost),notional:size*entry,priceRisk:size*distance,costEstimate:size*cost};}
 export function indicators(bars,market,interval=null){return {ema:ema(bars.map(b=>b.close)),atr:atr(bars),adx:adx(bars),vwap:vwap(bars,market,interval)};}
+// Closed candles for one source array and timeframe change only when the array is replaced or a
+// candle closes, so every strategy group and pass in between shares one aggregation.
+const closedCache=new WeakMap();
+function closedBars(bars,tf,base,now){
+ let frames=closedCache.get(bars);if(!frames){frames=new Map();closedCache.set(bars,frames);}
+ const key=tf+'|'+base,hit=frames.get(key);
+ if(hit&&hit.length===bars.length&&hit.last===bars.at(-1)&&now>=hit.now&&now<hit.until)return hit.closed;
+ const all=aggregate(bars,tf,base,now);let until=Infinity;
+ for(const b of all)if(!b.complete){const closes=b.closeTime??(b.time+tf*60)*1000;if(closes>now)until=Math.min(until,closes);}
+ const closed=all.filter(b=>b.complete);frames.set(key,{length:bars.length,last:bars.at(-1),now,until,closed});return closed;
+}
 export function evaluate(input){
  const originalSettings=input.settings||DEFAULTS,s=isIndexSymbol(input.symbol)?{...originalSettings,strategies:originalSettings.strategies.filter(id=>['ema-cross','ema-retest'].includes(id))}:originalSettings,tf=input.tf??5,groups=new Map(),sources=input.prepared?.sources||[...new Set((input.bars||[]).map(b=>b.source).filter(Boolean))];
  if(sources.length>1)throw Error("Mixed candle sources: rebuild the indicator series from one provider");
@@ -146,7 +173,7 @@ export function evaluate(input){
  return {signals:combineSignals(results.flatMap(r=>r.signals).map(r=>({...r,source,fallback,featureTime:r.confirmedAt}))),analysis:results[0].analysis};
 }
 function evaluateCore({symbol,market,bars,base=60,tf=5,settings:s=DEFAULTS,now=Date.now(),quote=null,marketTrend=null,replay=false,params,prepared=null}){
- const indexData=isIndexSymbol(symbol);const preparedView=prepared?.view(now,params.emaPeriod);const all=preparedView?preparedView.b:aggregate(bars,tf,base,now);let b=all.filter(x=>x.complete);
+ const indexData=isIndexSymbol(symbol);const preparedView=prepared?.view(now,params.emaPeriod);let b=preparedView?preparedView.b.filter(x=>x.complete):closedBars(bars,tf,base,now);
  // Never bridge a missing candle when confirming an entry.
  let cut=0;for(let i=1;i<b.length;i++)if(b[i].time-b[i-1].time!==tf*60)cut=i;
  // Overnight equity gaps are allowed for EMA, but intra-session gaps reset warmup.
@@ -158,7 +185,7 @@ function evaluateCore({symbol,market,bars,base=60,tf=5,settings:s=DEFAULTS,now=D
  const efficiency=Math.abs(c.close-b[i-12].close)/(b.slice(i-11,i+1).reduce((n,x,j)=>n+Math.abs(x.close-b[i-12+j].close),0)||1);
  const regime=efficiency<0.25?'Choppy':efficiency>0.55?'Trending':'Transitional';
  const higherTF=Math.max(tf,base/60,market==='crypto'?params.higherCryptoTF:params.higherStockTF);let higherTrend;
- if(prepared)higherTrend=prepared.higher(now,higherTF,params.emaPeriod);else {let highBars=aggregate(bars,higherTF,base,now).filter(x=>x.complete);const highWidth=higherTF*60;let highCut=0;for(let h=1;h<highBars.length;h++)if(highBars[h].time-highBars[h-1].time!==highWidth&&(market!=='stocks'||parts(highBars[h].time*1000,'America/New_York').date===parts(highBars[h-1].time*1000,'America/New_York').date))highCut=h;highBars=highBars.slice(highCut);const higher=ema(highBars.map(x=>x.close),params.emaPeriod);
+ if(prepared)higherTrend=prepared.higher(now,higherTF,params.emaPeriod);else {let highBars=closedBars(bars,higherTF,base,now);const highWidth=higherTF*60;let highCut=0;for(let h=1;h<highBars.length;h++)if(highBars[h].time-highBars[h-1].time!==highWidth&&(market!=='stocks'||parts(highBars[h].time*1000,'America/New_York').date===parts(highBars[h-1].time*1000,'America/New_York').date))highCut=h;highBars=highBars.slice(highCut);const higher=ema(highBars.map(x=>x.close),params.emaPeriod);
  higherTrend=higher.at(-2)==null?null:Math.sign(higher.at(-1)-higher.at(-2));
  }
  const crossAt=j=>ind.ema[j-1]==null?0:b[j-1].close<=ind.ema[j-1]&&b[j].close>ind.ema[j]?1:b[j-1].close>=ind.ema[j-1]&&b[j].close<ind.ema[j]?-1:0;

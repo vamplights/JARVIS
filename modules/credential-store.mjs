@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
+import {renameReplace} from './atomic-write.mjs';
 
 // Secret input/output uses private pipes, never command arguments or log output.
 export function windowsProtect(value, decrypt=false){
@@ -16,7 +17,7 @@ export class CredentialStore {
  constructor(file,{protect=windowsProtect}={}){this.file=file;this.protect=protect;}
  save(value){
   const encrypted=this.protect(Buffer.from(JSON.stringify(value))),tmp=this.file+'.tmp';
-  try{fs.writeFileSync(tmp,encrypted,{mode:0o600});fs.renameSync(tmp,this.file);}finally{fs.rmSync(tmp,{force:true});}
+  try{fs.writeFileSync(tmp,encrypted,{mode:0o600});renameReplace(tmp,this.file);}finally{fs.rmSync(tmp,{force:true});}
  }
  load(){if(!fs.existsSync(this.file))return null;return JSON.parse(this.protect(fs.readFileSync(this.file),true).toString('utf8'));}
  clear(){fs.rmSync(this.file,{force:true});fs.rmSync(this.file+'.tmp',{force:true});}

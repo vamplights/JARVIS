@@ -26,6 +26,7 @@ test('Replay equals incremental feed; future extensions never rewrite original c
 }finally{for(const o of [first,second])fs.rmSync(o.dir,{recursive:true,force:true});}});
 test('SVG uses candle coordinates across zoom, pan, gaps and offscreen geometry',()=>{
  const r={...fixture(),name:'<unsafe>',points:[{time:T+300,price:100,knownTime:T+600}]},bars=candles([100,101,102]),svg=patternOverlay(r,bars,i=>10+i*20,v=>200-v);assert.match(svg,/x1="10".*x2="50"/);assert.match(svg,/cx="30" cy="100"/);assert.match(svg,/&lt;unsafe&gt;/);
+ for(const [dir,tone] of [[1,'bullish'],[-1,'bearish'],[0,'neutral']])assert.match(patternOverlay({...r,dir},bars,i=>i,v=>v),new RegExp('data-direction="'+tone+'".*stroke="currentColor".*fill="currentColor"'));
  const zoom=patternOverlay(r,bars.slice(1),i=>10+i*40,v=>200-v);assert.match(zoom,/x1="10".*x2="50"/);assert.match(zoom,/cx="10"/);
  assert.equal(patternOverlay({...r,lines:[{t1:T-600,t2:T-300,p1:1,p2:2}],points:[],confirmationLevel:null,invalidationLevel:null},bars,i=>i,v=>v).includes('<line'),false);
  const gapBars=[bars[0],{...bars[1],time:T+86400}];assert.match(patternOverlay({...r,points:[{time:T+86400,price:100}],lines:[]},gapBars,i=>i*10,v=>v),/cx="10"/);

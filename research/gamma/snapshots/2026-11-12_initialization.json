@@ -1,0 +1,21 @@
+{
+  "version": "0.1",
+  "sessionDatePacific": "2026-11-12",
+  "cycle": "overnight_initialization",
+  "retrievalWindowPacific": "approximately 00:10-00:15",
+  "status": "blocked_market_inputs",
+  "providerAttempts": [
+    {"provider": "session Robinhood MCP", "status": "no_market_tools_exposed", "authenticatedCapabilitiesVerified": false},
+    {"provider": "local JARVIS Robinhood client", "status": "market_window_gate_observed_in_code", "requestAttempted": false},
+    {"provider": "Cboe public delayed JSON", "symbolsRequested": ["SPY", "QQQ", "_SPX"], "status": "fetch_failed"},
+    {"provider": "Firecrawl Cboe SPY JSON", "status": "transport_closed"}
+  ],
+  "localSnapshotCapturedAt": "2026-11-11T17:44:20.110Z",
+  "instrumentObservations": [
+    {"instrument": "SPY", "sourceTimestamp": null, "spot": null, "contractCount": null, "expirationCoverage": null, "oiEffectiveDate": null, "walls": null, "nodes": null, "flips": null},
+    {"instrument": "QQQ", "sourceTimestamp": null, "spot": null, "contractCount": null, "expirationCoverage": null, "oiEffectiveDate": null, "walls": null, "nodes": null, "flips": null},
+    {"instrument": "SPX", "sourceTimestamp": null, "spot": null, "contractCount": null, "expirationCoverage": null, "oiEffectiveDate": null, "walls": null, "nodes": null, "flips": null}
+  ],
+  "warnings": ["No validated chain response obtained", "Null values mean unavailable, not zero", "No live trigger or dealer inventory estimate established"],
+  "automation": {"visibleTaskCount": 0, "requestedIntradayMinutes": 30, "supportedMinimumMinutes": 60, "created": false}
+}

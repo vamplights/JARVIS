@@ -32,6 +32,13 @@ if ($jarvisService) {
 }
 if (-not (Test-JarvisReady)) {
     if ($jarvisService) { throw 'The JARVIS service has not passed its health check yet. See data\service-error.log.' }
+    # Keep the previous run's output; the redirects below start each log empty.
+    foreach ($jarvisLogName in @('server.log', 'server-error.log')) {
+        try {
+            $jarvisLogFile = Join-Path $jarvisData $jarvisLogName
+            if ((Test-Path -LiteralPath $jarvisLogFile) -and (Get-Item -LiteralPath $jarvisLogFile).Length -gt 0) { Copy-Item -LiteralPath $jarvisLogFile -Destination ($jarvisLogFile + '.previous') -Force }
+        } catch {}
+    }
     $jarvisStarted = Start-Process -FilePath $jarvisNode -ArgumentList @('server.mjs') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $jarvisData 'server.log') -RedirectStandardError (Join-Path $jarvisData 'server-error.log') -PassThru
     $jarvisStartedAt = Get-Date
     $jarvisDeadline = $jarvisStartedAt.AddSeconds(120)
